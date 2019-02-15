@@ -7,32 +7,35 @@ import (
 	"strings"
 )
 
+// AISParser encodes and decodes AIS messages (ITU-R M.1371-5)
 type AISParser struct {
 	StrictByteAlignment bool
 	minValidMap         map[string]uint
-
-	msgMap map[uint]reflect.Type
-
-	acceptShortAck            bool
-	acceptShortShipStaticData bool
 
 	DecoderCheckFixedValues bool
 	FloatWithoutConversion  bool
 }
 
+// AISParserCreate creates and initializes the AIS parser. The two parameters allow accepting
+// messages that a few types of existing encoders seem to transmit with invalid length.
+// This is very rare, passing false to both should be fine.
 func AISParserCreate(acceptShortAck bool, acceptShortShipStaticData bool) *AISParser {
 	t := &AISParser{}
 
 	t.minValidMap = make(map[string]uint)
-	t.msgMap = make(map[uint]reflect.Type)
 
-	t.acceptShortAck = acceptShortAck
-	t.acceptShortShipStaticData = acceptShortShipStaticData
-	t.fillMaps()
+	if acceptShortAck {
+		t.minValidMap["AISBinaryAcknowledgeData"] = 1
+	}
+
+	if acceptShortShipStaticData {
+		t.minValidMap["AISShipStaticData"] = 420
+	}
 
 	return t
 }
 
+// AISChannelToFrequency converts an AIS channel number into its frequency in Hz
 func (t *AISParser) AISChannelToFrequency(channel uint16) uint {
 	/* https://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1084-5-201203-I!!PDF-E.pdf */
 
@@ -289,6 +292,8 @@ func (t *AISParser) aisFillMessage(val reflect.Value, payload []byte, offset *ui
 	return 0
 }
 
+// DecodePacket will convert a []byte containing 0 and 1 to one of the structs in
+// messages.go. It will return nil if decoding failed.
 func (t *AISParser) DecodePacket(payload []byte) interface{} {
 	if len(payload)%8 != 0 {
 		/* AIS messages should be a multiple of 8-bits:
@@ -331,7 +336,7 @@ func (t *AISParser) DecodePacket(payload []byte) interface{} {
 	}
 
 	/* Use default decoder */
-	msgType, ok := t.msgMap[uint(msgID)]
+	msgType, ok := msgMap[uint(msgID)]
 	if ok {
 		msgPtr := reflect.New(msgType)
 		if t.aisFillMessage(msgPtr.Elem(), payload, &offset) == 0 {
@@ -526,6 +531,8 @@ func (t *AISParser) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, 
 	return packet, true
 }
 
+// EncodePacket encodes the structs in messages.go to a binary []byte
+// nil is returned if encoding failed.
 func (t *AISParser) EncodePacket(message interface{}) []byte {
 
 	val := reflect.ValueOf(message)

@@ -2,6 +2,8 @@ package goais
 
 import "reflect"
 
+var msgMap map[uint]reflect.Type
+
 // AISPositionReport should be output periodically by mobile stations. The message ID is 1, 2 or 3
 // depending on the system mode.
 type AISPositionReport struct {
@@ -536,7 +538,7 @@ type AISFieldCommunicationState struct {
 	State   uint32 `aisWidth:"19"`
 }
 
-// AISField10	represents a value multiplied by 10
+// AISField10 represents a value multiplied by 10
 type AISField10 float64
 
 // AISFieldLatLonCoarse representes a 1/10' position
@@ -545,39 +547,33 @@ type AISFieldLatLonCoarse float64
 // AISFieldLatLonFine representes a 1/10000' position
 type AISFieldLatLonFine float64
 
-func (t *AISParser) fillMaps() {
-	if t.acceptShortAck {
-		t.minValidMap["AISBinaryAcknowledgeData"] = 1
-	}
+func init() {
+	msgMap = make(map[uint]reflect.Type)
 
-	if t.acceptShortShipStaticData {
-		t.minValidMap["AISShipStaticData"] = 420
-	}
-
-	t.msgMap[1] = reflect.TypeOf(AISPositionReport{})
-	t.msgMap[2] = reflect.TypeOf(AISPositionReport{})
-	t.msgMap[3] = reflect.TypeOf(AISPositionReport{})
-	t.msgMap[4] = reflect.TypeOf(AISBaseStationReport{})
-	t.msgMap[5] = reflect.TypeOf(AISShipStaticData{})
-	t.msgMap[6] = reflect.TypeOf(AISAddressedBinaryMessage{})
-	t.msgMap[7] = reflect.TypeOf(AISBinaryAcknowledge{})
-	t.msgMap[8] = reflect.TypeOf(AISBinaryBroadcastMessage{})
-	t.msgMap[9] = reflect.TypeOf(AISStandardSearchAndRescueAircraftReport{})
-	t.msgMap[10] = reflect.TypeOf(AISCoordinatedUTCInquiry{})
-	t.msgMap[11] = reflect.TypeOf(AISBaseStationReport{})
-	t.msgMap[12] = reflect.TypeOf(AISAddessedSafetyMessage{})
-	t.msgMap[13] = reflect.TypeOf(AISBinaryAcknowledge{})
-	t.msgMap[14] = reflect.TypeOf(AISSafetyBroadcastMessage{})
-	t.msgMap[15] = reflect.TypeOf(AISInterrogation{})
-	t.msgMap[16] = reflect.TypeOf(AISAssignedModeCommand{})
-	t.msgMap[17] = reflect.TypeOf(AISGnssBroadcastBinaryMessage{})
-	t.msgMap[18] = reflect.TypeOf(AISStandardClassBPositionReport{})
-	t.msgMap[19] = reflect.TypeOf(AISExtendedClassBPositionReport{})
-	t.msgMap[20] = reflect.TypeOf(AISDataLinkManagementMessage{})
-	t.msgMap[21] = reflect.TypeOf(AISAidsToNavigationReport{})
-	t.msgMap[22] = reflect.TypeOf(AISChannelManagement{})
-	t.msgMap[23] = reflect.TypeOf(AISGroupAssignmentCommand{})
-	t.msgMap[25] = reflect.TypeOf(AISSingleSlotBinaryMessage{})
-	t.msgMap[26] = reflect.TypeOf(AISMultiSlotBinaryMessage{})
-	t.msgMap[27] = reflect.TypeOf(AISLongRangeAisBroadcastMessage{})
+	msgMap[1] = reflect.TypeOf(AISPositionReport{})
+	msgMap[2] = reflect.TypeOf(AISPositionReport{})
+	msgMap[3] = reflect.TypeOf(AISPositionReport{})
+	msgMap[4] = reflect.TypeOf(AISBaseStationReport{})
+	msgMap[5] = reflect.TypeOf(AISShipStaticData{})
+	msgMap[6] = reflect.TypeOf(AISAddressedBinaryMessage{})
+	msgMap[7] = reflect.TypeOf(AISBinaryAcknowledge{})
+	msgMap[8] = reflect.TypeOf(AISBinaryBroadcastMessage{})
+	msgMap[9] = reflect.TypeOf(AISStandardSearchAndRescueAircraftReport{})
+	msgMap[10] = reflect.TypeOf(AISCoordinatedUTCInquiry{})
+	msgMap[11] = reflect.TypeOf(AISBaseStationReport{})
+	msgMap[12] = reflect.TypeOf(AISAddessedSafetyMessage{})
+	msgMap[13] = reflect.TypeOf(AISBinaryAcknowledge{})
+	msgMap[14] = reflect.TypeOf(AISSafetyBroadcastMessage{})
+	msgMap[15] = reflect.TypeOf(AISInterrogation{})
+	msgMap[16] = reflect.TypeOf(AISAssignedModeCommand{})
+	msgMap[17] = reflect.TypeOf(AISGnssBroadcastBinaryMessage{})
+	msgMap[18] = reflect.TypeOf(AISStandardClassBPositionReport{})
+	msgMap[19] = reflect.TypeOf(AISExtendedClassBPositionReport{})
+	msgMap[20] = reflect.TypeOf(AISDataLinkManagementMessage{})
+	msgMap[21] = reflect.TypeOf(AISAidsToNavigationReport{})
+	msgMap[22] = reflect.TypeOf(AISChannelManagement{})
+	msgMap[23] = reflect.TypeOf(AISGroupAssignmentCommand{})
+	msgMap[25] = reflect.TypeOf(AISSingleSlotBinaryMessage{})
+	msgMap[26] = reflect.TypeOf(AISMultiSlotBinaryMessage{})
+	msgMap[27] = reflect.TypeOf(AISLongRangeAisBroadcastMessage{})
 }
