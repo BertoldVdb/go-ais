@@ -541,10 +541,10 @@ type AISFieldCommunicationState struct {
 // AISField10 represents a value multiplied by 10
 type AISField10 float64
 
-// AISFieldLatLonCoarse representes a 1/10' position
+// AISFieldLatLonCoarse represents a 1/10' position
 type AISFieldLatLonCoarse float64
 
-// AISFieldLatLonFine representes a 1/10000' position
+// AISFieldLatLonFine represents a 1/10000' position
 type AISFieldLatLonFine float64
 
 func init() {
