@@ -1,5 +1,8 @@
 # goais
 
+[![cover.run](https://cover.run/go/github.com/bertoldvdb/goais.svg?style=flat&tag=golang-1.10)](https://cover.run/go?tag=golang-1.10&repo=github.com%2Fbertoldvdb%2Fgoais)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Summary**
 This is a library written in [Go](https://golang.org/) to encode and decode Automatic Identification System packets. This is a VHF data system that is used for dependent tracking and identification of marine vessels. It is specified by the [ITU-R M.1371-5](https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en) standard.
 
