@@ -2,7 +2,7 @@ package goais
 
 import "reflect"
 
-var msgMap map[uint]reflect.Type
+var msgMap [28]reflect.Type
 
 // AISPositionReport should be output periodically by mobile stations. The message ID is 1, 2 or 3
 // depending on the system mode.
@@ -548,8 +548,6 @@ type AISFieldLatLonCoarse float64
 type AISFieldLatLonFine float64
 
 func init() {
-	msgMap = make(map[uint]reflect.Type)
-
 	msgMap[1] = reflect.TypeOf(AISPositionReport{})
 	msgMap[2] = reflect.TypeOf(AISPositionReport{})
 	msgMap[3] = reflect.TypeOf(AISPositionReport{})

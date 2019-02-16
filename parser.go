@@ -336,8 +336,8 @@ func (t *AISParser) DecodePacket(payload []byte) interface{} {
 	}
 
 	/* Use default decoder */
-	msgType, ok := msgMap[uint(msgID)]
-	if ok {
+	if msgID >= 1 && msgID <= 27 {
+        msgType := msgMap[uint(msgID)]
 		msgPtr := reflect.New(msgType)
 		if t.aisFillMessage(msgPtr.Elem(), payload, &offset) == 0 {
 			return msgPtr.Elem().Interface()
