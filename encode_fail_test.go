@@ -106,3 +106,17 @@ func TestEncodeFailNoUsefulData(t *testing.T) {
 		t.Error("Could not encode packet although data was added")
 	}
 }
+
+type wrongType struct {
+	Valid     bool
+	Something string
+}
+
+func TestEncodeWrongThing(t *testing.T) {
+	x := AISParserCreate(false, false)
+	p := wrongType{}
+
+	if x.EncodePacket(p) != nil {
+		t.Error("Could encode random type")
+	}
+}

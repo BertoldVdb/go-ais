@@ -337,7 +337,7 @@ func (t *AISParser) DecodePacket(payload []byte) interface{} {
 
 	/* Use default decoder */
 	if msgID >= 1 && msgID <= 27 {
-        msgType := msgMap[uint(msgID)]
+		msgType := msgMap[uint(msgID)]
 		msgPtr := reflect.New(msgType)
 		if t.aisFillMessage(msgPtr.Elem(), payload, &offset) == 0 {
 			return msgPtr.Elem().Interface()
@@ -536,7 +536,12 @@ func (t *AISParser) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, 
 func (t *AISParser) EncodePacket(message interface{}) []byte {
 
 	val := reflect.ValueOf(message)
-	encodeLen, _ := strconv.Atoi(val.Type().Field(0).Tag.Get("aisEncodeMaxLen"))
+
+	encodeString, ok := val.Type().Field(0).Tag.Lookup("aisEncodeMaxLen")
+	if !ok {
+		return nil
+	}
+	encodeLen, _ := strconv.Atoi(encodeString)
 
 	/* AIS packets need to be a multiple of 8 bits */
 	if encodeLen%8 != 0 {
@@ -544,7 +549,7 @@ func (t *AISParser) EncodePacket(message interface{}) []byte {
 	}
 
 	packet := make([]byte, 0, encodeLen)
-	packet, ok := t.aisEncodeMessage(val, packet)
+	packet, ok = t.aisEncodeMessage(val, packet)
 	if !ok {
 		return nil
 	}
