@@ -1,3 +1,4 @@
+// Package goais is an Automatic Identification System (ITU-R M.1371-5) packet decoder and encoder
 package goais
 
 import (
@@ -292,8 +293,8 @@ func (t *AISParser) aisFillMessage(val reflect.Value, payload []byte, offset *ui
 	return 0
 }
 
-// DecodePacket will convert a []byte containing 0 and 1 to one of the structs in
-// messages.go. It will return nil if decoding failed.
+// DecodePacket will convert a []byte containing 0 and 1 to an object containing the decoded packet.
+// It will return nil if decoding failed.
 func (t *AISParser) DecodePacket(payload []byte) interface{} {
 	if len(payload)%8 != 0 {
 		/* AIS messages should be a multiple of 8-bits:
@@ -521,7 +522,7 @@ func (t *AISParser) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, 
 				}
 			}
 
-			packet, ok = encodeNumber(packet, true, v, value)
+			packet, _ = encodeNumber(packet, true, v, value)
 		default:
 			log.Panicln("Unknown field type!")
 		}
@@ -531,7 +532,7 @@ func (t *AISParser) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, 
 	return packet, true
 }
 
-// EncodePacket encodes the structs in messages.go to a binary []byte
+// EncodePacket encodes a valid AIS object to a binary []byte.
 // nil is returned if encoding failed.
 func (t *AISParser) EncodePacket(message interface{}) []byte {
 
