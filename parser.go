@@ -1,3 +1,4 @@
+// Package goais is an Automatic Identification System (ITU-R M.1371-5) packet decoder and encoder
 package goais
 
 import (
