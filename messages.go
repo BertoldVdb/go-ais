@@ -68,7 +68,7 @@ type ShipStaticData struct {
 	Dimension            FieldDimension `aisWidth:"30"`
 	FixType              uint8          `aisWidth:"4"`
 	Eta                  FieldETA       `aisWidth:"20"`
-	MaximumStaticDraught uint8          `aisWidth:"8"`
+	MaximumStaticDraught Field10        `aisWidth:"8"`
 	Destination          string         `aisWidth:"120"`
 	Dte                  bool           `aisWidth:"1"`
 	Spare                bool           `aisWidth:"1" aisEncodeAs:"0"`
