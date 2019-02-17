@@ -1,9 +1,9 @@
-package goais
+package ais
 
 import "testing"
 
 func TestDecodeFailMsgIDTooShort(t *testing.T) {
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 
 	data := []byte{0, 1, 0, 1}
 
@@ -15,7 +15,7 @@ func TestDecodeFailMsgIDTooShort(t *testing.T) {
 func TestDecodeStrictAlignment(t *testing.T) {
 	data := []byte{0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0}
 
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 	x.StrictByteAlignment = true
 
 	if x.DecodePacket(data) == nil {
@@ -32,7 +32,7 @@ func TestDecodeStrictAlignment(t *testing.T) {
 func TestDecodeDependentBitNotReceived(t *testing.T) {
 	data := []byte{0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 
 	if x.DecodePacket(data) == nil {
 		t.Error("Failed to decode valid packet")

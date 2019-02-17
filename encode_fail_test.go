@@ -1,11 +1,11 @@
-package goais
+package ais
 
 import "testing"
 
 func tryEncodeTooLong(len int) bool {
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 
-	packet := AISSingleSlotBinaryMessage{
+	packet := SingleSlotBinaryMessage{
 		Valid:              true,
 		MessageID:          25,
 		RepeatIndicator:    0,
@@ -30,9 +30,9 @@ func TestEncodeFailTooLong(t *testing.T) {
 }
 
 func tryEncodeWithString(s string) bool {
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 
-	packet := AISSafetyBroadcastMessage{
+	packet := SafetyBroadcastMessage{
 		Valid:           true,
 		MessageID:       14,
 		RepeatIndicator: 0,
@@ -86,9 +86,9 @@ func TestEncodeNumberTooLarge(t *testing.T) {
 }
 
 func TestEncodeFailNoUsefulData(t *testing.T) {
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 
-	packet := AISBinaryAcknowledge{
+	packet := BinaryAcknowledge{
 		Valid:           true,
 		MessageID:       7,
 		RepeatIndicator: 0,
@@ -113,7 +113,7 @@ type wrongType struct {
 }
 
 func TestEncodeWrongThing(t *testing.T) {
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 	p := wrongType{}
 
 	if x.EncodePacket(p) != nil {

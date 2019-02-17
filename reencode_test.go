@@ -1,4 +1,4 @@
-package goais
+package ais
 
 import (
 	"bufio"
@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func tryFile(t *testing.T, x *AISParser, msgID int) {
+func tryFile(t *testing.T, x *Codec, msgID int) {
 	f, err := os.Open(fmt.Sprintf("testmsg/%d.msg", msgID))
 	if err != nil {
 		t.Error("Failed to open file", msgID)
@@ -56,7 +56,7 @@ func tryFile(t *testing.T, x *AISParser, msgID int) {
 }
 
 func TestReEncode(t *testing.T) {
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 
 	/* Convenience conversion disabled to avoid float inaccuracies */
 	x.FloatWithoutConversion = true
@@ -77,9 +77,9 @@ func checkFloat(a float64, b float64) bool {
 }
 
 func TestFloatReEncoder(t *testing.T) {
-	x := AISParserCreate(true, true)
+	x := CodecNew(true, true)
 
-	packet := AISPositionReport{
+	packet := PositionReport{
 		Valid:     true,
 		MessageID: 2,
 		UserID:    1337,
@@ -95,7 +95,7 @@ func TestFloatReEncoder(t *testing.T) {
 	}
 
 	switch newPacket := x.DecodePacket(encoded).(type) {
-	case AISPositionReport:
+	case PositionReport:
 		if !checkFloat(float64(packet.Latitude), float64(newPacket.Latitude)) ||
 			!checkFloat(float64(packet.Longitude), float64(newPacket.Longitude)) ||
 			!checkFloat(float64(packet.Cog), float64(newPacket.Cog)) {

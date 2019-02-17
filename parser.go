@@ -1,5 +1,5 @@
-// Package goais is an Automatic Identification System (ITU-R M.1371-5) packet decoder and encoder
-package goais
+// Package ais is an Automatic Identification System (ITU-R M.1371-5) packet decoder and encoder
+package ais
 
 import (
 	"log"
@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// AISParser encodes and decodes AIS messages (ITU-R M.1371-5)
-type AISParser struct {
+// Codec encodes and decodes AIS messages (ITU-R M.1371-5)
+type Codec struct {
 	StrictByteAlignment bool
 	minValidMap         map[string]uint
 
@@ -17,27 +17,27 @@ type AISParser struct {
 	FloatWithoutConversion  bool
 }
 
-// AISParserCreate creates and initializes the AIS parser. The two parameters allow accepting
+// CodecNew creates and initializes the AIS parser. The two parameters allow accepting
 // messages that a few types of existing encoders seem to transmit with invalid length.
 // This is very rare, passing false to both should be fine.
-func AISParserCreate(acceptShortAck bool, acceptShortShipStaticData bool) *AISParser {
-	t := &AISParser{}
+func CodecNew(acceptShortAck bool, acceptShortShipStaticData bool) *Codec {
+	t := &Codec{}
 
 	t.minValidMap = make(map[string]uint)
 
 	if acceptShortAck {
-		t.minValidMap["AISBinaryAcknowledgeData"] = 1
+		t.minValidMap["BinaryAcknowledgeData"] = 1
 	}
 
 	if acceptShortShipStaticData {
-		t.minValidMap["AISShipStaticData"] = 420
+		t.minValidMap["ShipStaticData"] = 420
 	}
 
 	return t
 }
 
-// AISChannelToFrequency converts an AIS channel number into its frequency in Hz
-func (t *AISParser) AISChannelToFrequency(channel uint16) uint {
+// ChannelToFrequency converts an AIS channel number into its frequency in Hz
+func (t *Codec) ChannelToFrequency(channel uint16) uint {
 	/* https://www.itu.int/dms_pubrec/itu-r/rec/m/R-REC-M.1084-5-201203-I!!PDF-E.pdf */
 
 	c := uint(channel % 1000)
@@ -167,7 +167,7 @@ func aisFindFieldLength(sf reflect.StructField, payload []byte) (valid bool, ski
 	return true, false, true, uint(vi)
 }
 
-func (t *AISParser) aisFillMessage(val reflect.Value, payload []byte, offset *uint) int {
+func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) int {
 	/* Return value of -2 propagates all the way up and fails the decode */
 
 	val.Field(0).SetBool(false)
@@ -275,11 +275,11 @@ func (t *AISParser) aisFillMessage(val reflect.Value, payload []byte, offset *ui
 
 			if !t.FloatWithoutConversion {
 				switch getFieldTypeString(field.Type()) {
-				case "AISFieldLatLonFine":
+				case "FieldLatLonFine":
 					field.SetFloat(float64(value) / 10000.0 / 60.0)
-				case "AISFieldLatLonCoarse":
+				case "FieldLatLonCoarse":
 					field.SetFloat(float64(value) / 10.0 / 60.0)
-				case "AISField10":
+				case "Field10":
 					field.SetFloat(float64(value) / 10.0)
 				}
 			}
@@ -295,7 +295,7 @@ func (t *AISParser) aisFillMessage(val reflect.Value, payload []byte, offset *ui
 
 // DecodePacket will convert a []byte containing 0 and 1 to an object containing the decoded packet.
 // It will return nil if decoding failed.
-func (t *AISParser) DecodePacket(payload []byte) interface{} {
+func (t *Codec) DecodePacket(payload []byte) interface{} {
 	if len(payload)%8 != 0 {
 		/* AIS messages should be a multiple of 8-bits:
 		 *  [Order AIS message bits into 8-bit bytes for assembly of transmission packet, see § 3.3.7.]
@@ -323,12 +323,12 @@ func (t *AISParser) DecodePacket(payload []byte) interface{} {
 		/* Check if this is part A or B */
 		if len(payload) >= 40 {
 			if payload[38] == 0 && payload[39] == 0 {
-				msg := AISStaticDataReportA{}
+				msg := StaticDataReportA{}
 				if t.aisFillMessage(reflect.ValueOf(&msg).Elem(), payload, &offset) == 0 {
 					return msg
 				}
 			} else if payload[38] == 0 && payload[39] == 1 {
-				msg := AISStaticDataReportB{}
+				msg := StaticDataReportB{}
 				if t.aisFillMessage(reflect.ValueOf(&msg).Elem(), payload, &offset) == 0 {
 					return msg
 				}
@@ -424,7 +424,7 @@ func aisEncodedLength(val reflect.Value, i int) (skip bool, fixedLength bool, le
 	return false, true, uint(vi)
 }
 
-func (t *AISParser) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool) {
+func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool) {
 	if !val.Field(0).Bool() {
 		return packet, false
 	}
@@ -513,11 +513,11 @@ func (t *AISParser) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, 
 
 			if !t.FloatWithoutConversion {
 				switch getFieldTypeString(field.Type()) {
-				case "AISFieldLatLonFine":
+				case "FieldLatLonFine":
 					value = int64(field.Float() * 10000.0 * 60.0)
-				case "AISFieldLatLonCoarse":
+				case "FieldLatLonCoarse":
 					value = int64(field.Float() * 10.0 * 60.0)
-				case "AISField10":
+				case "Field10":
 					value = int64(field.Float() * 10.0)
 				}
 			}
@@ -534,7 +534,7 @@ func (t *AISParser) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, 
 
 // EncodePacket encodes a valid AIS object to a binary []byte.
 // nil is returned if encoding failed.
-func (t *AISParser) EncodePacket(message interface{}) []byte {
+func (t *Codec) EncodePacket(message interface{}) []byte {
 
 	val := reflect.ValueOf(message)
 

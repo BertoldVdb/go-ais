@@ -18,18 +18,18 @@ Start by getting an AIS packet from somewhere. It could for example come from [A
     package main
     import (
         "fmt"
-        "github.com/BertoldVdb/goais"
+        "github.com/BertoldVdb/go-ais"
     )
     
     func  main() {
         msg  := []byte{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, ... , 0, 0, 0, 0, 0, 1, 1, 0, 0}
-        parser  := goais.AISParserCreate(false, false)
+        parser  := ais.CodecNew(false, false)
         result  := parser.DecodePacket(msg)
         fmt.Printf("%T: %+v\n", result, result)
     }
     
 The output of this program could be as follows:
-> goais.AISPositionReport: {Valid:true MessageID:1 RepeatIndicator:0 UserID:235117222 NavigationalStatus:8 RateOfTurn:-128 Sog:44 PositionAccuracy:true Longitude:-0.249303 Latitude:53.7109 Cog:-54.4 TrueHeading:511 Timestamp:1 SpecialManoeuvreIndicator:0 Spare:0 Raim:true CommunicationState:59916}
+> ais.PositionReport: {Valid:true MessageID:1 RepeatIndicator:0 UserID:235117222 NavigationalStatus:8 RateOfTurn:-128 Sog:44 PositionAccuracy:true Longitude:-0.249303 Latitude:53.7109 Cog:-54.4 TrueHeading:511 Timestamp:1 SpecialManoeuvreIndicator:0 Spare:0 Raim:true CommunicationState:59916}
 
 To encode a packet, call the EncodePacket function. It works exactly in the opposite way of DecodePacket.
 

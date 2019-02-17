@@ -1,4 +1,4 @@
-package goais
+package ais
 
 import "testing"
 
@@ -18,10 +18,10 @@ func TestChannelToFrequency(t *testing.T) {
 		{11111, 0}, /* A channel that does not exist */
 	}
 
-	x := AISParserCreate(false, false)
+	x := CodecNew(false, false)
 
 	for _, v := range values {
-		myFreq := x.AISChannelToFrequency(v.channel)
+		myFreq := x.ChannelToFrequency(v.channel)
 		if myFreq != v.freq {
 			t.Error("Failed to calculate channel frequency", v.channel, v.freq, myFreq)
 		}
