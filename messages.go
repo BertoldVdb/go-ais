@@ -13,7 +13,7 @@ type PositionReport struct {
 	UserID                    uint32          `aisWidth:"30"`
 	NavigationalStatus        uint8           `aisWidth:"4"`
 	RateOfTurn                int8            `aisWidth:"8"`
-	Sog                       uint16          `aisWidth:"10"`
+	Sog                       Field10         `aisWidth:"10"`
 	PositionAccuracy          bool            `aisWidth:"1"`
 	Longitude                 FieldLatLonFine `aisWidth:"28"`
 	Latitude                  FieldLatLonFine `aisWidth:"27"`
@@ -187,7 +187,7 @@ type StandardClassBPositionReport struct {
 	RepeatIndicator    uint8                   `aisWidth:"2"`
 	UserID             uint32                  `aisWidth:"30"`
 	Spare1             uint8                   `aisWidth:"8" aisEncodeAs:"0"`
-	Sog                uint16                  `aisWidth:"10"`
+	Sog                Field10                 `aisWidth:"10"`
 	PositionAccuracy   bool                    `aisWidth:"1"`
 	Longitude          FieldLatLonFine         `aisWidth:"28"`
 	Latitude           FieldLatLonFine         `aisWidth:"27"`
@@ -218,7 +218,7 @@ type ExtendedClassBPositionReport struct {
 	RepeatIndicator  uint8           `aisWidth:"2"`
 	UserID           uint32          `aisWidth:"30"`
 	Spare1           uint8           `aisWidth:"8" aisEncodeAs:"0"`
-	Sog              uint16          `aisWidth:"10"`
+	Sog              Field10         `aisWidth:"10"`
 	PositionAccuracy bool            `aisWidth:"1"`
 	Longitude        FieldLatLonFine `aisWidth:"28"`
 	Latitude         FieldLatLonFine `aisWidth:"27"`
