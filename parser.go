@@ -13,8 +13,17 @@ type Codec struct {
 	StrictByteAlignment bool
 	minValidMap         map[string]uint
 
+	// DecoderCheckFixedValues will validate that spare values are zero. This is only for debugging
+	// and should not be used as newer protocl versions may use the spares for something.
 	DecoderCheckFixedValues bool
-	FloatWithoutConversion  bool
+
+	// FloatWithoutConversion will disable float conversion, making re-encoding the decoded output yield
+	// an identical bitstream.
+	FloatWithoutConversion bool
+
+	// DropSpace will drop spaces at the end of strings. Many encoders pad strings
+	// with spaces instead of @.
+	DropSpace bool
 }
 
 // CodecNew creates and initializes the AIS parser. The two parameters allow accepting
@@ -104,7 +113,7 @@ func extractNumber(payload []byte, isSigned bool, offset *uint, width uint) int6
 	return int64(result)
 }
 
-func extractString(payload []byte, offset *uint, width uint) string {
+func extractString(payload []byte, offset *uint, width uint, dropSpace bool) string {
 	numChars := width / 6
 
 	result := make([]byte, numChars)
@@ -123,7 +132,9 @@ func extractString(payload []byte, offset *uint, width uint) string {
 	stripSpace := len(result)
 	for i := len(result) - 1; i >= 0; i-- {
 		if result[i] != '@' {
-			break
+			if !dropSpace || result[i] != ' ' {
+				break
+			}
 		}
 		stripSpace--
 	}
@@ -247,7 +258,7 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 			}
 			field.SetBool(value)
 		case reflect.String:
-			field.SetString(extractString(payload, offset, v))
+			field.SetString(extractString(payload, offset, v, t.DropSpace))
 		case reflect.Slice:
 			field.SetBytes(payload[*offset : *offset+v])
 			*offset += v
