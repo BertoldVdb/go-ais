@@ -109,7 +109,34 @@ func TestEncodeFailNoUsefulData(t *testing.T) {
 	}
 }
 
-type wrongType struct {
-	Valid     bool
-	Something string
+func tryEncodeWithMessageId(mID uint8) bool {
+	x := CodecNew(false, false)
+
+	packet := PositionReport{
+		Valid: true,
+	}
+
+	packet.Header = Header{
+		MessageID: mID,
+		UserID:    1337}
+
+	return x.EncodePacket(packet) != nil
+}
+
+func TestEncodeFailWrongMsgID(t *testing.T) {
+	if !tryEncodeWithMessageId(1) {
+		t.Error("Could not encode position report with msgID==1")
+	}
+
+	if !tryEncodeWithMessageId(2) {
+		t.Error("Could not encode position report with msgID==2")
+	}
+
+	if !tryEncodeWithMessageId(3) {
+		t.Error("Could not encode position report with msgID==3")
+	}
+
+	if tryEncodeWithMessageId(4) {
+		t.Error("Could encode position report with msgID==4")
+	}
 }

@@ -541,9 +541,17 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 // EncodePacket encodes a valid AIS object to a binary []byte.
 // nil is returned if encoding failed.
 func (t *Codec) EncodePacket(message Packet) []byte {
+	/* Check if the type is correct */
+	mID := message.GetHeader().MessageID
+	if mID < 1 || mID > 27 {
+		return nil
+	}
+	expectedType := msgMap[mID]
+	if reflect.TypeOf(message) != expectedType {
+		return nil
+	}
 
 	val := reflect.ValueOf(message)
-
 	vt, _ := val.Type().FieldByName("Valid")
 
 	encodeString, ok := vt.Tag.Lookup("aisEncodeMaxLen")
