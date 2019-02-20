@@ -15,9 +15,9 @@ Many other libraries tightly integrate a NMEA (VDM/VDO) decoder with the AIS dec
 **How to use it**
 Start by getting an AIS packet from somewhere. It could for example come from [AISHub](http://www.aishub.net/) or a local receiver. Extract the payload and convert it to a byte slice containing one bit per byte. Then call the DecodePacket function on it. It will return an object containing the decoded message. For example:
 
-     package main
+    package main
      
-     import (
+    import (
         "fmt"
         "encoding/json"
     
