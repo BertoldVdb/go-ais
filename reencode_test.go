@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"testing"
 )
@@ -39,7 +40,6 @@ func tryFile(t *testing.T, x *Codec, msgID int) {
 			continue
 		}
 
-		/* Reencode it */
 		encoded := x.EncodePacket(decoded)
 
 		/* Check if the bitstream is identical */
@@ -63,6 +63,7 @@ func TestReEncode(t *testing.T) {
 
 	/* Test all message types */
 	for i := 1; i <= 27; i++ {
+		log.Println("Working on message type", i)
 		tryFile(t, x, i)
 	}
 }
@@ -81,12 +82,13 @@ func TestFloatReEncoder(t *testing.T) {
 
 	packet := PositionReport{
 		Valid:     true,
-		MessageID: 2,
-		UserID:    1337,
 		Longitude: 12.345,
 		Latitude:  1.2345,
 		Cog:       123.2,
 	}
+	packet.Header = Header{
+		MessageID: 2,
+		UserID:    1337}
 
 	encoded := x.EncodePacket(packet)
 	if encoded == nil {
@@ -104,4 +106,68 @@ func TestFloatReEncoder(t *testing.T) {
 	default:
 		t.Error("Packet was returned as a different type")
 	}
+}
+
+func testInterfacecInternal(p Packet, t *testing.T) (bool, int, uint32) {
+	x := CodecNew(false, false)
+
+	encoded := x.EncodePacket(p)
+	if encoded == nil {
+		t.Error("Failed to encode packet")
+	}
+
+	decoded := x.DecodePacket(encoded)
+	if decoded.GetHeader().MessageID != p.GetHeader().MessageID {
+		t.Error("GetHeader failed")
+	}
+
+	switch newPacket := decoded.(type) {
+	case HasCommunicationState:
+		return true, newPacket.IsItdma(), newPacket.GetState()
+	default:
+		return false, 0, 0
+	}
+}
+
+func TestInterfaceAccess(t *testing.T) {
+
+	packet := MultiSlotBinaryMessage{
+		Valid: true,
+	}
+	packet.Header = Header{MessageID: 26}
+	packet.CommunicationStateIsItdma = true
+	packet.CommunicationState = 0x1234
+
+	a, b, c := testInterfacecInternal(packet, t)
+	if !a {
+		t.Error("Comm state not found")
+	}
+	if b != 1 || c != 0x1234 {
+		t.Error("Comm state decoding error", b, c)
+	}
+
+	packet.CommunicationStateIsItdma = false
+	packet.CommunicationState = 0xCAFE
+
+	a, b, c = testInterfacecInternal(packet, t)
+	if !a {
+		t.Error("Comm state not found")
+	}
+	if b != 0 || c != 0xCAFE {
+		t.Error("Comm state decoding error", b, c)
+	}
+
+	packet2 := PositionReport{
+		Valid: true,
+	}
+	packet2.Header = Header{MessageID: 1}
+	packet2.CommunicationState = 0x4321
+	a, b, c = testInterfacecInternal(packet2, t)
+	if !a {
+		t.Error("Comm state not found")
+	}
+	if b != -1 || c != 0x4321 {
+		t.Error("Comm state decoding error", b, c)
+	}
+
 }

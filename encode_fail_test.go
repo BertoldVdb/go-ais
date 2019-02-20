@@ -7,12 +7,13 @@ func tryEncodeTooLong(len int) bool {
 
 	packet := SingleSlotBinaryMessage{
 		Valid:              true,
-		MessageID:          25,
-		RepeatIndicator:    0,
-		SourceID:           1234,
 		DestinationIDValid: false,
 		ApplicationIDValid: false,
 	}
+
+	packet.Header = Header{
+		MessageID: 25,
+		UserID:    1337}
 
 	packet.Payload = make([]byte, len)
 
@@ -33,12 +34,13 @@ func tryEncodeWithString(s string) bool {
 	x := CodecNew(false, false)
 
 	packet := SafetyBroadcastMessage{
-		Valid:           true,
-		MessageID:       14,
-		RepeatIndicator: 0,
-		SourceID:        1234,
-		Text:            s,
+		Valid: true,
+		Text:  s,
 	}
+
+	packet.Header = Header{
+		MessageID: 14,
+		UserID:    1337}
 
 	return x.EncodePacket(packet) != nil
 }
@@ -89,11 +91,11 @@ func TestEncodeFailNoUsefulData(t *testing.T) {
 	x := CodecNew(false, false)
 
 	packet := BinaryAcknowledge{
-		Valid:           true,
-		MessageID:       7,
-		RepeatIndicator: 0,
-		SourceID:        1234,
+		Valid: true,
 	}
+	packet.Header = Header{
+		MessageID: 7,
+		UserID:    1337}
 
 	if x.EncodePacket(packet) != nil {
 		t.Error("Could encode packet that contained no data")
@@ -110,13 +112,4 @@ func TestEncodeFailNoUsefulData(t *testing.T) {
 type wrongType struct {
 	Valid     bool
 	Something string
-}
-
-func TestEncodeWrongThing(t *testing.T) {
-	x := CodecNew(false, false)
-	p := wrongType{}
-
-	if x.EncodePacket(p) != nil {
-		t.Error("Could encode random type")
-	}
 }

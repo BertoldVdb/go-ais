@@ -2,10 +2,8 @@
 package ais
 
 import (
-	"log"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 // Codec encodes and decodes AIS messages (ITU-R M.1371-5)
@@ -144,12 +142,6 @@ func extractString(payload []byte, offset *uint, width uint, dropSpace bool) str
 	return string(result)
 }
 
-func getFieldTypeString(k reflect.Type) string {
-	strType := k.String()
-	dotIndex := strings.LastIndex(strType, ".")
-	return strType[dotIndex+1:]
-}
-
 func aisFindFieldLength(sf reflect.StructField, payload []byte) (valid bool, skip bool, fixedLength bool, length uint) {
 	depends, ok := sf.Tag.Lookup("aisDependsBit")
 	if ok {
@@ -181,15 +173,18 @@ func aisFindFieldLength(sf reflect.StructField, payload []byte) (valid bool, ski
 func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) int {
 	/* Return value of -2 propagates all the way up and fails the decode */
 
-	val.Field(0).SetBool(false)
+	validField := val.FieldByName("Valid")
+	if validField.IsValid() {
+		validField.SetBool(false)
+	}
 
 	/* Look up the struct */
 	st := val.Type()
-	strType := getFieldTypeString(st)
+	strType := st.Name()
 
 	/* Calculate minimum length */
 	minLength := uint(0)
-	for i := 1; i < val.NumField(); i++ {
+	for i := 0; i < val.NumField(); i++ {
 		valid, skip, fixedLength, length := aisFindFieldLength(st.Field(i), payload)
 		if !valid {
 			return -1
@@ -209,7 +204,11 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 		return -1
 	}
 
-	for i := 1; i < val.NumField(); i++ {
+	for i := 0; i < val.NumField(); i++ {
+		if st.Field(i).Name == "Valid" {
+			continue
+		}
+
 		field := val.Field(i)
 
 		_, skip, fixedLength, v := aisFindFieldLength(st.Field(i), payload)
@@ -230,12 +229,15 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 
 		checkValue := false
 		correctValue := 0
-		if t.DecoderCheckFixedValues {
-			encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisEncodeAs")
-			if encodeAsFound {
-				correctValue, _ = strconv.Atoi(encodeAsStr)
-				checkValue = true
-			}
+
+		encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisCheckValue")
+		if !encodeAsFound && t.DecoderCheckFixedValues {
+			encodeAsStr, encodeAsFound = st.Field(i).Tag.Lookup("aisEncodeAs")
+		}
+
+		if encodeAsFound {
+			correctValue, _ = strconv.Atoi(encodeAsStr)
+			checkValue = true
 		}
 
 		switch field.Kind() {
@@ -285,7 +287,7 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 			field.SetFloat(float64(value))
 
 			if !t.FloatWithoutConversion {
-				switch getFieldTypeString(field.Type()) {
+				switch field.Type().Name() {
 				case "FieldLatLonFine":
 					field.SetFloat(float64(value) / 10000.0 / 60.0)
 				case "FieldLatLonCoarse":
@@ -295,18 +297,20 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 				}
 			}
 		default:
-			log.Panicln("Unknown field type!")
+			panic("Unknown field type!")
 		}
 	}
 
-	val.Field(0).SetBool(true)
+	if validField.IsValid() {
+		validField.SetBool(true)
+	}
 
 	return 0
 }
 
 // DecodePacket will convert a []byte containing 0 and 1 to an object containing the decoded packet.
 // It will return nil if decoding failed.
-func (t *Codec) DecodePacket(payload []byte) interface{} {
+func (t *Codec) DecodePacket(payload []byte) Packet {
 	if len(payload)%8 != 0 {
 		/* AIS messages should be a multiple of 8-bits:
 		 *  [Order AIS message bits into 8-bit bytes for assembly of transmission packet, see § 3.3.7.]
@@ -328,31 +332,17 @@ func (t *Codec) DecodePacket(payload []byte) interface{} {
 
 	offset = 0
 
-	/* Handle special case messages */
-	switch msgID {
-	case 24:
-		/* Check if this is part A or B */
-		if len(payload) >= 40 {
-			if payload[38] == 0 && payload[39] == 0 {
-				msg := StaticDataReportA{}
-				if t.aisFillMessage(reflect.ValueOf(&msg).Elem(), payload, &offset) == 0 {
-					return msg
-				}
-			} else if payload[38] == 0 && payload[39] == 1 {
-				msg := StaticDataReportB{}
-				if t.aisFillMessage(reflect.ValueOf(&msg).Elem(), payload, &offset) == 0 {
-					return msg
-				}
-			}
-		}
-	}
-
 	/* Use default decoder */
 	if msgID >= 1 && msgID <= 27 {
 		msgType := msgMap[uint(msgID)]
 		msgPtr := reflect.New(msgType)
 		if t.aisFillMessage(msgPtr.Elem(), payload, &offset) == 0 {
-			return msgPtr.Elem().Interface()
+			switch out := msgPtr.Elem().Interface().(type) {
+			case Packet:
+				return out
+			default:
+				panic("Wrong type returned")
+			}
 		}
 	}
 
@@ -436,14 +426,19 @@ func aisEncodedLength(val reflect.Value, i int) (skip bool, fixedLength bool, le
 }
 
 func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool) {
-	if !val.Field(0).Bool() {
+	vf := val.FieldByName("Valid")
+	if vf.IsValid() && !vf.Bool() {
 		return packet, false
 	}
 
 	st := val.Type()
 	var ok bool
 
-	for i := 1; i < val.NumField(); i++ {
+	for i := 0; i < val.NumField(); i++ {
+		if st.Field(i).Name == "Valid" {
+			continue
+		}
+
 		field := val.Field(i)
 		skip, fixedLength, v := aisEncodedLength(val, i)
 
@@ -523,7 +518,7 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 			value := int64(field.Float())
 
 			if !t.FloatWithoutConversion {
-				switch getFieldTypeString(field.Type()) {
+				switch field.Type().Name() {
 				case "FieldLatLonFine":
 					value = int64(field.Float() * 10000.0 * 60.0)
 				case "FieldLatLonCoarse":
@@ -535,7 +530,7 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 
 			packet, _ = encodeNumber(packet, true, v, value)
 		default:
-			log.Panicln("Unknown field type!")
+			panic("Unknown field type!")
 		}
 
 	}
@@ -545,11 +540,13 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 
 // EncodePacket encodes a valid AIS object to a binary []byte.
 // nil is returned if encoding failed.
-func (t *Codec) EncodePacket(message interface{}) []byte {
+func (t *Codec) EncodePacket(message Packet) []byte {
 
 	val := reflect.ValueOf(message)
 
-	encodeString, ok := val.Type().Field(0).Tag.Lookup("aisEncodeMaxLen")
+	vt, _ := val.Type().FieldByName("Valid")
+
+	encodeString, ok := vt.Tag.Lookup("aisEncodeMaxLen")
 	if !ok {
 		return nil
 	}
@@ -570,7 +567,15 @@ func (t *Codec) EncodePacket(message interface{}) []byte {
 		return nil
 	}
 
-	/* Pad packet to 8-bit boundary */
+	/* Pad packet to 8-bit boundary:
+	 * From 3.3.7: Unused bits in the last byte should be set to zero in order to preserve byte boundary.
+	 * This means that you cannot send variable length binary messages where the payload is not a multiple of 8-bits.
+	 * Otherwise, the padding will damage the attached communication state.
+	 *
+	 * Some encoders do seem to produce these messages (total length is not a multiple of 8), we can receive that
+	 * but not encode it. These are likely proprietary systems anyway, all publically documented messages I have seen
+	 * are a multiple of 8-bits long.
+	 */
 	for len(packet)%8 != 0 {
 		packet = append(packet, 0)
 	}
