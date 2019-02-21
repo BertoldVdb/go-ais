@@ -24,6 +24,12 @@ type Codec struct {
 	DropSpace bool
 }
 
+func assert(condition bool, err string) {
+	if !condition {
+		panic("BUG: " + err)
+	}
+}
+
 // CodecNew creates and initializes the AIS parser. The two parameters allow accepting
 // messages that a few types of existing encoders seem to transmit with invalid length.
 // This is very rare, passing false to both should be fine.
@@ -170,6 +176,31 @@ func aisFindFieldLength(sf reflect.StructField, payload []byte) (valid bool, ski
 	return true, false, true, uint(vi)
 }
 
+func isBasicValue(val reflect.Value) (bool, int64) {
+	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true, val.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return true, int64(val.Uint())
+	case reflect.Bool:
+		if val.Bool() {
+			return true, 1
+		}
+		return true, 0
+	default:
+		return false, 0
+	}
+}
+
+func isSigned(val reflect.Value) bool {
+	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	default:
+		return false
+	}
+}
+
 func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) int {
 	/* Return value of -2 propagates all the way up and fails the decode */
 
@@ -220,45 +251,40 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 		/* Some fields take up the entire remainder of the message */
 		if !fixedLength {
 			varLen := len(payload) - int(minLength)
-			if varLen < 0 {
-				return -1
-			}
+			assert(varLen >= 0, "Variable length payload length is negative.")
 
 			v = uint(varLen)
 		}
 
-		checkValue := false
-		correctValue := 0
+		var basicValue int64
+		if b, _ := isBasicValue(field); b {
+			checkValue := false
+			correctValue := int64(0)
 
-		encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisCheckValue")
-		if !encodeAsFound && t.DecoderCheckFixedValues {
-			encodeAsStr, encodeAsFound = st.Field(i).Tag.Lookup("aisEncodeAs")
-		}
+			encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisCheckValue")
+			if !encodeAsFound && t.DecoderCheckFixedValues {
+				encodeAsStr, encodeAsFound = st.Field(i).Tag.Lookup("aisEncodeAs")
+			}
 
-		if encodeAsFound {
-			correctValue, _ = strconv.Atoi(encodeAsStr)
-			checkValue = true
+			if encodeAsFound {
+				correctValue, _ = strconv.ParseInt(encodeAsStr, 10, 64)
+				checkValue = true
+			}
+
+			basicValue = extractNumber(payload, isSigned(field), offset, v)
+			if checkValue && (basicValue != correctValue) {
+				return -2
+			}
+
 		}
 
 		switch field.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			value := extractNumber(payload, true, offset, v)
-			if checkValue && value != int64(correctValue) {
-				return -2
-			}
-			field.SetInt(value)
+			field.SetInt(basicValue)
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			value := uint64(extractNumber(payload, false, offset, v))
-			if checkValue && value != uint64(correctValue) {
-				return -2
-			}
-			field.SetUint(value)
+			field.SetUint(uint64(basicValue))
 		case reflect.Bool:
-			value := extractNumber(payload, false, offset, v) > 0
-			if checkValue && value != (correctValue == 1) {
-				return -2
-			}
-			field.SetBool(value)
+			field.SetBool(basicValue == 1)
 		case reflect.String:
 			field.SetString(extractString(payload, offset, v, t.DropSpace))
 		case reflect.Slice:
@@ -296,8 +322,6 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 					field.SetFloat(float64(value) / 10.0)
 				}
 			}
-		default:
-			panic("Unknown field type!")
 		}
 	}
 
@@ -340,8 +364,6 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 			switch out := msgPtr.Elem().Interface().(type) {
 			case Packet:
 				return out
-			default:
-				panic("Wrong type returned")
 			}
 		}
 	}
@@ -446,39 +468,19 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 			continue
 		}
 
-		encodeAsValue := 0
-		encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisEncodeAs")
-		if encodeAsFound {
-			encodeAsValue, _ = strconv.Atoi(encodeAsStr)
+		if b, k := isBasicValue(field); b {
+			encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisEncodeAs")
+			if encodeAsFound {
+				k, _ = strconv.ParseInt(encodeAsStr, 10, 64)
+			}
+
+			packet, ok = encodeNumber(packet, isSigned(field), v, k)
+			if !ok {
+				return packet, false
+			}
 		}
 
 		switch field.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			value := field.Int()
-			if encodeAsFound {
-				value = int64(encodeAsValue)
-			}
-			packet, ok = encodeNumber(packet, true, v, value)
-			if !ok {
-				return packet, false
-			}
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			value := int64(field.Uint())
-			if encodeAsFound {
-				value = int64(encodeAsValue)
-			}
-			packet, ok = encodeNumber(packet, false, v, value)
-			if !ok {
-				return packet, false
-			}
-		case reflect.Bool:
-			if encodeAsFound {
-				packet = append(packet, byte(encodeAsValue))
-			} else if field.Bool() {
-				packet = append(packet, 1)
-			} else {
-				packet = append(packet, 0)
-			}
 		case reflect.String:
 			packet, ok = encodeString(packet, v, fixedLength, field.String())
 			if !ok {
@@ -486,18 +488,9 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 			}
 		case reflect.Slice:
 			tmp := field.Bytes()
-			if fixedLength {
-				if uint(len(tmp)) >= v {
-					packet = append(packet, tmp[:v]...)
-				} else {
-					packet = append(packet, tmp...)
-					for j := len(tmp); j < int(v); j++ {
-						packet = append(packet, 0)
-					}
-				}
-			} else {
-				packet = append(packet, tmp...)
-			}
+			assert(!fixedLength, "Fixed length slices are not supported since they do not occur in the current spec")
+			packet = append(packet, tmp...)
+
 		case reflect.Array:
 			for k := 0; k < field.Len(); k++ {
 				subField := field.Index(k)
@@ -529,8 +522,6 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 			}
 
 			packet, _ = encodeNumber(packet, true, v, value)
-		default:
-			panic("Unknown field type!")
 		}
 
 	}
@@ -555,9 +546,7 @@ func (t *Codec) EncodePacket(message Packet) []byte {
 	vt, _ := val.Type().FieldByName("Valid")
 
 	encodeString, ok := vt.Tag.Lookup("aisEncodeMaxLen")
-	if !ok {
-		return nil
-	}
+	assert(ok, "aisEncodeMaxLen not found")
 	encodeLen, _ := strconv.Atoi(encodeString)
 
 	/* AIS packets need to be a multiple of 8 bits */

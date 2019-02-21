@@ -37,7 +37,6 @@ func tryEncodeWithString(s string) bool {
 		Valid: true,
 		Text:  s,
 	}
-
 	packet.Header = Header{
 		MessageID: 14,
 		UserID:    1337}
@@ -109,7 +108,7 @@ func TestEncodeFailNoUsefulData(t *testing.T) {
 	}
 }
 
-func tryEncodeWithMessageId(mID uint8) bool {
+func tryEncodeWithMessageID(mID uint8) bool {
 	x := CodecNew(false, false)
 
 	packet := PositionReport{
@@ -124,27 +123,51 @@ func tryEncodeWithMessageId(mID uint8) bool {
 }
 
 func TestEncodeFailWrongMsgID(t *testing.T) {
-	if !tryEncodeWithMessageId(1) {
+	if !tryEncodeWithMessageID(1) {
 		t.Error("Could not encode position report with msgID==1")
 	}
 
-	if !tryEncodeWithMessageId(2) {
+	if !tryEncodeWithMessageID(2) {
 		t.Error("Could not encode position report with msgID==2")
 	}
 
-	if !tryEncodeWithMessageId(3) {
+	if !tryEncodeWithMessageID(3) {
 		t.Error("Could not encode position report with msgID==3")
 	}
 
-	if tryEncodeWithMessageId(4) {
+	if tryEncodeWithMessageID(4) {
 		t.Error("Could encode position report with msgID==4")
 	}
 
-	if tryEncodeWithMessageId(0) {
+	if tryEncodeWithMessageID(0) {
 		t.Error("Could encode position report with msgID==0")
 	}
 
-	if tryEncodeWithMessageId(28) {
+	if tryEncodeWithMessageID(28) {
 		t.Error("Could encode position report with msgID==28")
+	}
+}
+
+func tryEncodeTooLargeNumber(number uint16) bool {
+	x := CodecNew(false, false)
+
+	packet := ShipStaticData{
+		Valid: true,
+	}
+	packet.Header = Header{
+		MessageID: 5,
+		UserID:    1337}
+	packet.Dimension.A = number
+
+	return x.EncodePacket(packet) != nil
+}
+
+func TestEncodeTooLargeNumber(t *testing.T) {
+	if !tryEncodeTooLargeNumber(1) {
+		t.Error("Could not encode ShipStaticData with DimensionA=1")
+	}
+
+	if tryEncodeTooLargeNumber(65535) {
+		t.Error("Could encode ShipStaticData with DimensionA=65535")
 	}
 }

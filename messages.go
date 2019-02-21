@@ -334,7 +334,7 @@ type LongRangeAisBroadcastMessage struct {
 	Longitude          FieldLatLonCoarse `aisWidth:"18"`
 	Latitude           FieldLatLonCoarse `aisWidth:"17"`
 	Sog                uint8             `aisWidth:"6"`
-	Cos                uint16            `aisWidth:"9"`
+	Cog                uint16            `aisWidth:"9"`
 	PositionLatency    bool              `aisWidth:"1"`
 	Spare              bool              `aisWidth:"1" aisEncodeAs:"0"`
 }
@@ -376,6 +376,7 @@ type InterrogationStation2 struct {
 // Interrogation should be used for interrogations via the TDMA (not DSC) VHF data link except for
 // requests for UTC and date. The response should be transmitted on the channel where the interrogation
 // was received.
+// TODO: This message is not correctly parsed
 type Interrogation struct {
 	Header     `aisWidth:"38"`
 	Valid      bool                     `aisEncodeMaxLen:"160"`

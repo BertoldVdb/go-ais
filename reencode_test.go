@@ -74,11 +74,12 @@ func checkFloat(a float64, b float64) bool {
 		diff = -diff
 	}
 
-	return diff < 0.001
+	return diff < 0.002
 }
 
 func TestFloatReEncoder(t *testing.T) {
 	x := CodecNew(true, true)
+	x.DecoderCheckFixedValues = true
 
 	packet := PositionReport{
 		Valid:     true,
@@ -101,6 +102,31 @@ func TestFloatReEncoder(t *testing.T) {
 		if !checkFloat(float64(packet.Latitude), float64(newPacket.Latitude)) ||
 			!checkFloat(float64(packet.Longitude), float64(newPacket.Longitude)) ||
 			!checkFloat(float64(packet.Cog), float64(newPacket.Cog)) {
+			t.Error("Packet has a floating point error")
+		}
+	default:
+		t.Error("Packet was returned as a different type")
+	}
+
+	packet2 := LongRangeAisBroadcastMessage{
+		Valid:     true,
+		Longitude: 12.345,
+		Latitude:  1.2345,
+	}
+	packet2.Header = Header{
+		MessageID: 27,
+		UserID:    1337}
+
+	encoded2 := x.EncodePacket(packet2)
+	if encoded2 == nil {
+		t.Error("Failed to encode position report")
+		return
+	}
+
+	switch newPacket := x.DecodePacket(encoded2).(type) {
+	case LongRangeAisBroadcastMessage:
+		if !checkFloat(float64(packet.Latitude), float64(newPacket.Latitude)) ||
+			!checkFloat(float64(packet.Longitude), float64(newPacket.Longitude)) {
 			t.Error("Packet has a floating point error")
 		}
 	default:
@@ -169,5 +195,129 @@ func TestInterfaceAccess(t *testing.T) {
 	if b != -1 || c != 0x4321 {
 		t.Error("Comm state decoding error", b, c)
 	}
+}
 
+func testEmptyArray(t *testing.T, slotValid bool) bool {
+	x := CodecNew(true, true)
+
+	packet := BinaryAcknowledge{
+		Valid: true,
+	}
+	packet.Header = Header{
+		MessageID: 7,
+		UserID:    1337}
+	packet.Destinations[0].Valid = true
+
+	encoded := x.EncodePacket(packet)
+	if encoded == nil {
+		t.Error("Failed to encode BinaryAcknowledge")
+		return false
+	}
+
+	/* Truncate message to remove the payload */
+	if !slotValid {
+		encoded = encoded[:40]
+	}
+
+	decoded := x.DecodePacket(encoded)
+	if decoded == nil {
+		return false
+	}
+
+	switch decoded.(type) {
+	case BinaryAcknowledge:
+		return true
+	default:
+		t.Error("Packet was returned as a different type")
+		return false
+	}
+}
+
+func TestEmptyPayloadInArrayMessages(t *testing.T) {
+
+	if testEmptyArray(t, false) {
+		t.Error("Could decode empty acknowledge")
+	}
+
+	if !testEmptyArray(t, true) {
+		t.Error("Could not decode non-empty acknowledge")
+	}
+}
+
+func testValidateFailCorrupt(t *testing.T, corruptSpare bool, packetType bool) bool {
+	x := CodecNew(true, true)
+	x.DecoderCheckFixedValues = true
+
+	if !packetType {
+		packet := StaticDataReport{
+			Valid:      true,
+			PartNumber: true,
+		}
+		packet.Header = Header{
+			MessageID: 24,
+			UserID:    1337}
+		packet.ReportB.Valid = true
+
+		encoded := x.EncodePacket(packet)
+		if encoded == nil {
+			t.Error("Failed to encode StaticDataReport")
+			return false
+		}
+
+		if corruptSpare {
+			encoded[167] = 1
+		}
+
+		decoded := x.DecodePacket(encoded)
+		if decoded == nil {
+			return false
+		}
+	} else {
+
+		packet2 := Interrogation{
+			Valid: true,
+		}
+		packet2.Header = Header{
+			MessageID: 15,
+			UserID:    1337}
+		//TODO: WARNING: Message 15 is wrongly encoded unless all fields are valid
+		packet2.Station1[0].Valid = true
+		packet2.Station1[1].Valid = true
+		packet2.Station2[0].Valid = true
+
+		encoded2 := x.EncodePacket(packet2)
+		if encoded2 == nil {
+			t.Error("Failed to encode Interrogation")
+			return false
+		}
+
+		if corruptSpare {
+			encoded2[88] = 1
+		}
+
+		decoded2 := x.DecodePacket(encoded2)
+		if decoded2 == nil {
+			return false
+		}
+
+	}
+	return true
+}
+
+func TestValidateFailCorrupt(t *testing.T) {
+	if testValidateFailCorrupt(t, true, false) {
+		t.Error("Could decode corrupted packet")
+	}
+
+	if !testValidateFailCorrupt(t, false, false) {
+		t.Error("Could not decode non-corrupt packet")
+	}
+
+	if testValidateFailCorrupt(t, true, true) {
+		t.Error("Could decode corrupted packet")
+	}
+
+	if !testValidateFailCorrupt(t, false, true) {
+		t.Error("Could not decode non-corrupt packet")
+	}
 }
