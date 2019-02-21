@@ -139,4 +139,12 @@ func TestEncodeFailWrongMsgID(t *testing.T) {
 	if tryEncodeWithMessageId(4) {
 		t.Error("Could encode position report with msgID==4")
 	}
+
+	if tryEncodeWithMessageId(0) {
+		t.Error("Could encode position report with msgID==0")
+	}
+
+	if tryEncodeWithMessageId(28) {
+		t.Error("Could encode position report with msgID==28")
+	}
 }
