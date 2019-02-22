@@ -1,7 +1,7 @@
 # go-ais
 
 [![Build Status](https://travis-ci.org/BertoldVdb/go-ais.svg?branch=master)](https://travis-ci.org/BertoldVdb/go-ais)
-[![cover.run](https://cover.run/go/github.com/bertoldvdb/goais.svg?style=flat&tag=golang-1.10)](https://cover.run/go?tag=golang-1.10&repo=github.com%2Fbertoldvdb%2Fgoais)
+[![Coverage Status](https://coveralls.io/repos/github/BertoldVdb/go-ais/badge.svg?branch=master)](https://coveralls.io/github/BertoldVdb/go-ais?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/bertoldvdb/goais)](https://goreportcard.com/report/github.com/bertoldvdb/goais)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
