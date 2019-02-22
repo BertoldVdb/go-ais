@@ -280,10 +280,10 @@ func testValidateFailCorrupt(t *testing.T, corruptSpare bool, packetType bool) b
 		packet2.Header = Header{
 			MessageID: 15,
 			UserID:    1337}
-		//TODO: WARNING: Message 15 is wrongly encoded unless all fields are valid
-		packet2.Station1[0].Valid = true
-		packet2.Station1[1].Valid = true
-		packet2.Station2[0].Valid = true
+
+		packet2.Station1Msg1.Valid = true
+		packet2.Station2.Valid = true
+		packet2.Station2.MessageID = 2
 
 		encoded2 := x.EncodePacket(packet2)
 		if encoded2 == nil {

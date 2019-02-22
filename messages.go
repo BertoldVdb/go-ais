@@ -4,11 +4,19 @@ import (
 	"reflect"
 )
 
-var msgMap [28]reflect.Type
+type processFunc func(packet Packet) Packet
+
+type msgMapType struct {
+	rType reflect.Type
+}
+
+var msgMap [28]msgMapType
 
 // Packet is an interface describing coded and decoded ais packets
 type Packet interface {
 	GetHeader() *Header
+	encodeHelper() bool
+	decodeHelper() bool
 }
 
 // Header contains the header prepended to each packet
@@ -22,6 +30,10 @@ type Header struct {
 func (h Header) GetHeader() *Header {
 	return &h
 }
+
+// Do nothing by default
+func (h Header) encodeHelper() bool { return true }
+func (h Header) decodeHelper() bool { return true }
 
 // PositionReport should be output periodically by mobile stations. The message ID is 1, 2 or 3
 // depending on the system mode.
@@ -356,34 +368,62 @@ type BinaryAcknowledge struct {
 	Destinations [4]BinaryAcknowledgeData `aisWidth:"0"`
 }
 
-// InterrogationStation1 is the station 1 part of Interrogation
-type InterrogationStation1 struct {
+// InterrogationStation1Message1 is the station 1 part of Interrogation
+type InterrogationStation1Message1 struct {
 	Valid      bool
+	StationID  uint32 `aisWidth:"30"`
 	MessageID  uint8  `aisWidth:"6"`
 	SlotOffset uint16 `aisWidth:"12"`
+}
+
+// InterrogationStation1Message2 is the second station 1 part of interrogation
+type InterrogationStation1Message2 struct {
+	Valid      bool   `aisOptional:"1"`
 	Spare      uint8  `aisWidth:"2" aisEncodeAs:"0"`
+	MessageID  uint8  `aisWidth:"6"`
+	SlotOffset uint16 `aisWidth:"12"`
 }
 
 // InterrogationStation2 is the station 2 part of Interrogation
 type InterrogationStation2 struct {
-	Valid      bool
-	Station2ID uint32 `aisWidth:"30"`
+	Valid      bool   `aisOptional:"1"`
+	Spare1     uint8  `aisWidth:"2" aisEncodeAs:"0"`
+	StationID  uint32 `aisWidth:"30"`
 	MessageID  uint8  `aisWidth:"6"`
 	SlotOffset uint16 `aisWidth:"12"`
-	Spare      uint8  `aisWidth:"2" aisEncodeAs:"0"`
+	Spare2     uint8  `aisWidth:"2" aisEncodeAs:"0"`
 }
 
 // Interrogation should be used for interrogations via the TDMA (not DSC) VHF data link except for
 // requests for UTC and date. The response should be transmitted on the channel where the interrogation
 // was received.
-// TODO: This message is not correctly parsed
 type Interrogation struct {
-	Header     `aisWidth:"38"`
-	Valid      bool                     `aisEncodeMaxLen:"160"`
-	Spare      uint8                    `aisWidth:"2" aisEncodeAs:"0"`
-	Station1ID uint32                   `aisWidth:"30"`
-	Station1   [2]InterrogationStation1 `aisWidth:"0"`
-	Station2   [1]InterrogationStation2 `aisWidth:"0"`
+	Header       `aisWidth:"38"`
+	Valid        bool                          `aisEncodeMaxLen:"160"`
+	Spare        uint8                         `aisWidth:"2" aisEncodeAs:"0"`
+	Station1Msg1 InterrogationStation1Message1 `aisWidth:"48"`
+	Station1Msg2 InterrogationStation1Message2 `aisWidth:"0"`
+	Station2     InterrogationStation2         `aisWidth:"0"`
+}
+
+func (p Interrogation) encodeHelper() bool {
+	if p.Station2.Valid && !p.Station1Msg2.Valid {
+		/* All values should be set to zero and the field must be encoded! */
+		p.Station1Msg2 = InterrogationStation1Message2{Valid: true}
+	}
+
+	return true
+}
+
+func (p Interrogation) decodeHelper() bool {
+	if p.Station2.Valid {
+		/* If Station1Msg2 is all zeros it actually is not valid */
+		if p.Station1Msg2.MessageID == 0 && p.Station1Msg2.SlotOffset == 0 {
+			p.Station1Msg2.Valid = false
+		}
+	}
+
+	return true
 }
 
 // AssignedModeCommandData is the data part of AssignedModeCommand
@@ -426,6 +466,22 @@ type DataLinkManagementMessage struct {
 	Data   [4]DataLinkManagementMessageData `aisWidth:"0"`
 }
 
+// ChannelManagementBroadcastData contains the boundrary for a broadcasted channel mangement packet.
+type ChannelManagementBroadcastData struct {
+	Longitude1 FieldLatLonCoarse `aisWidth:"18"`
+	Latitude1  FieldLatLonCoarse `aisWidth:"17"`
+	Longitude2 FieldLatLonCoarse `aisWidth:"18"`
+	Latitude2  FieldLatLonCoarse `aisWidth:"17"`
+}
+
+// ChannelManagementUnicastData contains the destination addresses for a unicast channel mangement packet.
+type ChannelManagementUnicastData struct {
+	AddressStation1 uint32 `aisWidth:"30"`
+	Spare2          uint8  `aisWidth:"5" aisEncodeAs:"0"`
+	AddressStation2 uint32 `aisWidth:"30"`
+	Spare3          uint8  `aisWidth:"5" aisEncodeAs:"0"`
+}
+
 // ChannelManagement should be transmitted by a base station (as a broadcast message) to command the VHF
 // data link parameters for the geographical area designated in this message and should be accompanied
 // by a Message 4 transmission for evaluation of the message within 120 NM. The geographical area
@@ -436,25 +492,19 @@ type DataLinkManagementMessage struct {
 // should be transmitted (see § 4.1, Annex 2).
 type ChannelManagement struct {
 	Header               `aisWidth:"38"`
-	Valid                bool              `aisEncodeMaxLen:"168"`
-	Spare1               uint8             `aisWidth:"2" aisEncodeAs:"0"`
-	ChannelA             uint16            `aisWidth:"12"`
-	ChannelB             uint16            `aisWidth:"12"`
-	TxRxMode             uint8             `aisWidth:"4"`
-	LowPower             bool              `aisWidth:"1"`
-	Longitude1           FieldLatLonCoarse `aisWidth:"18" aisDependsBit:"~139" aisDependsField:"~IsAddressed"`
-	Latitude1            FieldLatLonCoarse `aisWidth:"17" aisDependsBit:"~139" aisDependsField:"~IsAddressed"`
-	Longitude2           FieldLatLonCoarse `aisWidth:"18" aisDependsBit:"~139" aisDependsField:"~IsAddressed"`
-	Latitude2            FieldLatLonCoarse `aisWidth:"17" aisDependsBit:"~139" aisDependsField:"~IsAddressed"`
-	AddressStation1      uint32            `aisWidth:"30" aisDependsBit:"139" aisDependsField:"IsAddressed"`
-	Spare2               uint8             `aisWidth:"5" aisDependsBit:"139" aisDependsField:"IsAddressed" aisEncodeAs:"0"`
-	AddressStation2      uint32            `aisWidth:"30" aisDependsBit:"139" aisDependsField:"IsAddressed"`
-	Spare3               uint8             `aisWidth:"5" aisDependsBit:"139" aisDependsField:"IsAddressed" aisEncodeAs:"0"`
-	IsAddressed          bool              `aisWidth:"1"`
-	BwA                  bool              `aisWidth:"1"`
-	BwB                  bool              `aisWidth:"1"`
-	TransitionalZoneSize uint8             `aisWidth:"3"`
-	Spare4               uint32            `aisWidth:"23" aisEncodeAs:"0"`
+	Valid                bool                           `aisEncodeMaxLen:"168"`
+	Spare1               uint8                          `aisWidth:"2" aisEncodeAs:"0"`
+	ChannelA             uint16                         `aisWidth:"12"`
+	ChannelB             uint16                         `aisWidth:"12"`
+	TxRxMode             uint8                          `aisWidth:"4"`
+	LowPower             bool                           `aisWidth:"1"`
+	Area                 ChannelManagementBroadcastData `aisWidth:"70" aisDependsBit:"~139" aisDependsField:"~IsAddressed"`
+	Unicast              ChannelManagementUnicastData   `aisWidth:"70" aisDependsBit:"139" aisDependsField:"IsAddressed"`
+	IsAddressed          bool                           `aisWidth:"1"`
+	BwA                  bool                           `aisWidth:"1"`
+	BwB                  bool                           `aisWidth:"1"`
+	TransitionalZoneSize uint8                          `aisWidth:"3"`
+	Spare4               uint32                         `aisWidth:"23" aisEncodeAs:"0"`
 }
 
 // SingleSlotBinaryMessage is primarily intended short infrequent data transmissions. The single slot
@@ -565,31 +615,31 @@ type FieldLatLonCoarse float64
 type FieldLatLonFine float64
 
 func init() {
-	msgMap[1] = reflect.TypeOf(PositionReport{})
-	msgMap[2] = reflect.TypeOf(PositionReport{})
-	msgMap[3] = reflect.TypeOf(PositionReport{})
-	msgMap[4] = reflect.TypeOf(BaseStationReport{})
-	msgMap[5] = reflect.TypeOf(ShipStaticData{})
-	msgMap[6] = reflect.TypeOf(AddressedBinaryMessage{})
-	msgMap[7] = reflect.TypeOf(BinaryAcknowledge{})
-	msgMap[8] = reflect.TypeOf(BinaryBroadcastMessage{})
-	msgMap[9] = reflect.TypeOf(StandardSearchAndRescueAircraftReport{})
-	msgMap[10] = reflect.TypeOf(CoordinatedUTCInquiry{})
-	msgMap[11] = reflect.TypeOf(BaseStationReport{})
-	msgMap[12] = reflect.TypeOf(AddessedSafetyMessage{})
-	msgMap[13] = reflect.TypeOf(BinaryAcknowledge{})
-	msgMap[14] = reflect.TypeOf(SafetyBroadcastMessage{})
-	msgMap[15] = reflect.TypeOf(Interrogation{})
-	msgMap[16] = reflect.TypeOf(AssignedModeCommand{})
-	msgMap[17] = reflect.TypeOf(GnssBroadcastBinaryMessage{})
-	msgMap[18] = reflect.TypeOf(StandardClassBPositionReport{})
-	msgMap[19] = reflect.TypeOf(ExtendedClassBPositionReport{})
-	msgMap[20] = reflect.TypeOf(DataLinkManagementMessage{})
-	msgMap[21] = reflect.TypeOf(AidsToNavigationReport{})
-	msgMap[22] = reflect.TypeOf(ChannelManagement{})
-	msgMap[23] = reflect.TypeOf(GroupAssignmentCommand{})
-	msgMap[24] = reflect.TypeOf(StaticDataReport{})
-	msgMap[25] = reflect.TypeOf(SingleSlotBinaryMessage{})
-	msgMap[26] = reflect.TypeOf(MultiSlotBinaryMessage{})
-	msgMap[27] = reflect.TypeOf(LongRangeAisBroadcastMessage{})
+	msgMap[1].rType = reflect.TypeOf(PositionReport{})
+	msgMap[2].rType = reflect.TypeOf(PositionReport{})
+	msgMap[3].rType = reflect.TypeOf(PositionReport{})
+	msgMap[4].rType = reflect.TypeOf(BaseStationReport{})
+	msgMap[5].rType = reflect.TypeOf(ShipStaticData{})
+	msgMap[6].rType = reflect.TypeOf(AddressedBinaryMessage{})
+	msgMap[7].rType = reflect.TypeOf(BinaryAcknowledge{})
+	msgMap[8].rType = reflect.TypeOf(BinaryBroadcastMessage{})
+	msgMap[9].rType = reflect.TypeOf(StandardSearchAndRescueAircraftReport{})
+	msgMap[10].rType = reflect.TypeOf(CoordinatedUTCInquiry{})
+	msgMap[11].rType = reflect.TypeOf(BaseStationReport{})
+	msgMap[12].rType = reflect.TypeOf(AddessedSafetyMessage{})
+	msgMap[13].rType = reflect.TypeOf(BinaryAcknowledge{})
+	msgMap[14].rType = reflect.TypeOf(SafetyBroadcastMessage{})
+	msgMap[15].rType = reflect.TypeOf(Interrogation{})
+	msgMap[16].rType = reflect.TypeOf(AssignedModeCommand{})
+	msgMap[17].rType = reflect.TypeOf(GnssBroadcastBinaryMessage{})
+	msgMap[18].rType = reflect.TypeOf(StandardClassBPositionReport{})
+	msgMap[19].rType = reflect.TypeOf(ExtendedClassBPositionReport{})
+	msgMap[20].rType = reflect.TypeOf(DataLinkManagementMessage{})
+	msgMap[21].rType = reflect.TypeOf(AidsToNavigationReport{})
+	msgMap[22].rType = reflect.TypeOf(ChannelManagement{})
+	msgMap[23].rType = reflect.TypeOf(GroupAssignmentCommand{})
+	msgMap[24].rType = reflect.TypeOf(StaticDataReport{})
+	msgMap[25].rType = reflect.TypeOf(SingleSlotBinaryMessage{})
+	msgMap[26].rType = reflect.TypeOf(MultiSlotBinaryMessage{})
+	msgMap[27].rType = reflect.TypeOf(LongRangeAisBroadcastMessage{})
 }

@@ -204,14 +204,18 @@ func isSigned(val reflect.Value) bool {
 func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) int {
 	/* Return value of -2 propagates all the way up and fails the decode */
 
-	validField := val.FieldByName("Valid")
-	if validField.IsValid() {
-		validField.SetBool(false)
-	}
+	optional := false
 
 	/* Look up the struct */
 	st := val.Type()
 	strType := st.Name()
+
+	validField := val.FieldByName("Valid")
+	if validField.IsValid() {
+		f, _ := st.FieldByName("Valid")
+		_, optional = f.Tag.Lookup("aisOptional")
+		validField.SetBool(false)
+	}
 
 	/* Calculate minimum length */
 	minLength := uint(0)
@@ -232,6 +236,9 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 
 	/* Is the message long enough? */
 	if len(payload)-int(*offset) < int(minBitsForValid) {
+		if optional {
+			return 0
+		}
 		return -1
 	}
 
@@ -294,13 +301,12 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 			for k := 0; k < field.Len(); k++ {
 				subField := field.Index(k)
 				ok := t.aisFillMessage(subField, payload, offset)
+				assert(ok != -2, "Could not encode array subfield. This should not happen with the current message definition")
 				if ok == -1 {
 					if k == 0 {
 						return -2
 					}
 					break
-				} else if ok == -2 {
-					return -2
 				}
 			}
 		case reflect.Struct:
@@ -358,11 +364,12 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 
 	/* Use default decoder */
 	if msgID >= 1 && msgID <= 27 {
-		msgType := msgMap[uint(msgID)]
-		msgPtr := reflect.New(msgType)
+		msgType := msgMap[msgID]
+		msgPtr := reflect.New(msgType.rType)
 		if t.aisFillMessage(msgPtr.Elem(), payload, &offset) == 0 {
 			switch out := msgPtr.Elem().Interface().(type) {
 			case Packet:
+				out.decodeHelper()
 				return out
 			}
 		}
@@ -450,7 +457,11 @@ func aisEncodedLength(val reflect.Value, i int) (skip bool, fixedLength bool, le
 func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool) {
 	vf := val.FieldByName("Valid")
 	if vf.IsValid() && !vf.Bool() {
-		return packet, false
+
+		/* Is it optional? */
+		tf, _ := val.Type().FieldByName("Valid")
+		_, opt := tf.Tag.Lookup("aisOptional")
+		return packet, opt
 	}
 
 	st := val.Type()
@@ -537,12 +548,15 @@ func (t *Codec) EncodePacket(message Packet) []byte {
 	if mID < 1 || mID > 27 {
 		return nil
 	}
-	expectedType := msgMap[mID]
+	expectedType := msgMap[mID].rType
 	if reflect.TypeOf(message) != expectedType {
 		return nil
 	}
 
-	val := reflect.ValueOf(message)
+	m2 := message
+	m2.encodeHelper()
+
+	val := reflect.ValueOf(m2)
 	vt, _ := val.Type().FieldByName("Valid")
 
 	encodeString, ok := vt.Tag.Lookup("aisEncodeMaxLen")
