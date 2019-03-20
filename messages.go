@@ -15,8 +15,8 @@ var msgMap [28]msgMapType
 // Packet is an interface describing coded and decoded ais packets
 type Packet interface {
 	GetHeader() *Header
-	encodeHelper() bool
-	decodeHelper() bool
+	encodeHelper()
+	decodeHelper()
 }
 
 // Header contains the header prepended to each packet
@@ -32,8 +32,8 @@ func (h Header) GetHeader() *Header {
 }
 
 // Do nothing by default
-func (h Header) encodeHelper() bool { return true }
-func (h Header) decodeHelper() bool { return true }
+func (h Header) encodeHelper() {}
+func (h Header) decodeHelper() {}
 
 // PositionReport should be output periodically by mobile stations. The message ID is 1, 2 or 3
 // depending on the system mode.
@@ -406,24 +406,20 @@ type Interrogation struct {
 	Station2     InterrogationStation2         `aisWidth:"0"`
 }
 
-func (p Interrogation) encodeHelper() bool {
+func (p Interrogation) encodeHelper() {
 	if p.Station2.Valid && !p.Station1Msg2.Valid {
 		/* All values should be set to zero and the field must be encoded! */
 		p.Station1Msg2 = InterrogationStation1Message2{Valid: true}
 	}
-
-	return true
 }
 
-func (p Interrogation) decodeHelper() bool {
+func (p Interrogation) decodeHelper() {
 	if p.Station2.Valid {
 		/* If Station1Msg2 is all zeros it actually is not valid */
 		if p.Station1Msg2.MessageID == 0 && p.Station1Msg2.SlotOffset == 0 {
 			p.Station1Msg2.Valid = false
 		}
 	}
-
-	return true
 }
 
 // AssignedModeCommandData is the data part of AssignedModeCommand
