@@ -45,7 +45,7 @@ func tryFile(t *testing.T, x *Codec, msgID int) {
 		/* Check if the bitstream is identical */
 		if len(encoded) < len(source) {
 			/* Output is too short */
-			t.Error("Output too short", msgID, index)
+			t.Error("Output too short", msgID, index, len(encoded), len(source))
 			continue
 		}
 
