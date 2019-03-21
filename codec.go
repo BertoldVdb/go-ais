@@ -531,7 +531,10 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 				}
 			}
 
-			packet, _ = encodeNumber(packet, true, v, value)
+			packet, ok = encodeNumber(packet, true, v, value)
+			if !ok {
+				return packet, false
+			}
 		}
 
 	}

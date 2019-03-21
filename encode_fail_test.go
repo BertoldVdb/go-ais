@@ -171,3 +171,21 @@ func TestEncodeTooLargeNumber(t *testing.T) {
 		t.Error("Could encode ShipStaticData with DimensionA=65535")
 	}
 }
+
+func TestEncodeFloatOutOfRange(t *testing.T) {
+	staticData := ShipStaticData{
+		Valid:                true,
+		MaximumStaticDraught: 1000,
+	}
+
+	staticData.Header = Header{
+		MessageID: 5,
+		UserID:    1337,
+	}
+
+	x := CodecNew(false, false)
+	if x.EncodePacket(staticData) != nil {
+		t.Error("Encoded oversized float")
+	}
+
+}
