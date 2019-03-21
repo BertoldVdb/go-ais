@@ -38,15 +38,14 @@ func NMEACodecNew(codec *ais.Codec) *NMEACodec {
 }
 
 func (nc *NMEACodec) handleAssembledMessage(assembled VdmPacket) {
-	decoded := nc.codec.DecodePacket(assembled.Payload)
-	if decoded != nil && nc.DecodeCallback != nil {
+	if nc.DecodeCallback != nil {
 		channel := byte(1)
 		c := assembled.Channel
 		if c == '2' || c == 'b' || c == 'B' || c == '+' || c == 'H' || c == 'h' {
 			channel = byte(2)
 		}
 
-		assembled.Packet = decoded
+		assembled.Packet = nc.codec.DecodePacket(assembled.Payload)
 		assembled.Channel = channel
 		nc.DecodeCallback(assembled)
 	}
