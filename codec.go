@@ -369,10 +369,7 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 		if t.aisFillMessage(msgPtr.Elem(), payload, &offset) == 0 {
 			switch out := msgPtr.Elem().Interface().(type) {
 			case Packet:
-				if m := out.decodeHelper(); m != nil {
-					return m
-				}
-				return out
+				return decodeHelper(out)
 			}
 		}
 	}
@@ -555,14 +552,7 @@ func (t *Codec) EncodePacket(message Packet) []byte {
 		return nil
 	}
 
-	var val reflect.Value
-
-	m2 := message.encodeHelper()
-	if m2 != nil {
-		val = reflect.ValueOf(m2)
-	} else {
-		val = reflect.ValueOf(message)
-	}
+	val := reflect.ValueOf(encodeHelper(message))
 
 	vt, _ := val.Type().FieldByName("Valid")
 

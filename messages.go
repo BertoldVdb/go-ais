@@ -15,8 +15,6 @@ var msgMap [28]msgMapType
 // Packet is an interface describing coded and decoded ais packets
 type Packet interface {
 	GetHeader() *Header
-	encodeHelper() Packet
-	decodeHelper() Packet
 }
 
 // Header contains the header prepended to each packet
@@ -30,10 +28,6 @@ type Header struct {
 func (h Header) GetHeader() *Header {
 	return &h
 }
-
-// Do nothing by default
-func (h Header) encodeHelper() Packet { return nil }
-func (h Header) decodeHelper() Packet { return nil }
 
 // PositionReport should be output periodically by mobile stations. The message ID is 1, 2 or 3
 // depending on the system mode.
@@ -406,28 +400,6 @@ type Interrogation struct {
 	Station2     InterrogationStation2         `aisWidth:"0"`
 }
 
-func (p Interrogation) encodeHelper() Packet {
-	if p.Station2.Valid && !p.Station1Msg2.Valid {
-		/* All values should be set to zero and the field must be encoded! */
-		p.Station1Msg2 = InterrogationStation1Message2{Valid: true}
-		return p
-	}
-
-	return nil
-}
-
-func (p Interrogation) decodeHelper() Packet {
-	if p.Station2.Valid {
-		/* If Station1Msg2 is all zeros it actually is not valid */
-		if p.Station1Msg2.MessageID == 0 && p.Station1Msg2.SlotOffset == 0 {
-			p.Station1Msg2.Valid = false
-			return p
-		}
-	}
-
-	return nil
-}
-
 // AssignedModeCommandData is the data part of AssignedModeCommand
 type AssignedModeCommandData struct {
 	Valid         bool
@@ -644,4 +616,32 @@ func init() {
 	msgMap[25].rType = reflect.TypeOf(SingleSlotBinaryMessage{})
 	msgMap[26].rType = reflect.TypeOf(MultiSlotBinaryMessage{})
 	msgMap[27].rType = reflect.TypeOf(LongRangeAisBroadcastMessage{})
+}
+
+func encodeHelper(p Packet) Packet {
+	switch x := p.(type) {
+	case Interrogation:
+		if x.Station2.Valid && !x.Station1Msg2.Valid {
+			/* All values should be set to zero and the field must be encoded! */
+			x.Station1Msg2 = InterrogationStation1Message2{Valid: true}
+		}
+		return x
+	}
+
+	return p
+}
+
+func decodeHelper(p Packet) Packet {
+	switch x := p.(type) {
+	case Interrogation:
+		if x.Station2.Valid {
+			/* If Station1Msg2 is all zeros it actually is not valid */
+			if x.Station1Msg2.MessageID == 0 && x.Station1Msg2.SlotOffset == 0 {
+				x.Station1Msg2.Valid = false
+			}
+		}
+		return x
+	}
+
+	return p
 }
