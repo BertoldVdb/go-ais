@@ -315,7 +315,9 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 				return ok
 			}
 		case reflect.Float64, reflect.Float32:
-			value := extractNumber(payload, true, offset, v)
+			signed := field.Type().Name() != "Field10"
+
+			value := extractNumber(payload, signed, offset, v)
 			field.SetFloat(float64(value))
 
 			if !t.FloatWithoutConversion {
@@ -520,6 +522,8 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 		case reflect.Float64, reflect.Float32:
 			value := int64(field.Float())
 
+			signed := field.Type().Name() != "Field10"
+
 			if !t.FloatWithoutConversion {
 				switch field.Type().Name() {
 				case "FieldLatLonFine":
@@ -531,7 +535,7 @@ func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool
 				}
 			}
 
-			packet, ok = encodeNumber(packet, true, v, value)
+			packet, ok = encodeNumber(packet, signed, v, value)
 			if !ok {
 				return packet, false
 			}

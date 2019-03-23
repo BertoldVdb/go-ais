@@ -579,7 +579,7 @@ func (c CommunicationStateNoItdma) GetState() uint32 {
 	return c.CommunicationState
 }
 
-// Field10 represents a value multiplied by 10
+// Field10 represents an unsigned value multiplied by 10
 type Field10 float64
 
 // FieldLatLonCoarse represents a 1/10' position
