@@ -14,7 +14,7 @@ This is a library written in [Go](https://golang.org/) to encode and decode Auto
 
 There are a few other libraries offered on the internet, but all of them implement only a few messages (usually the position and static reports). In addition, very few libraries support encoding.
 
-Many other libraries tightly integrate a NMEA (VDM/VDO) decoder with the AIS decoder. This is handy if you use a complete receiver that delivers NMEA sentences, but can be limiting. For example, you may have a low level RF receiver connected directly to an embedded system. I feel it is best to split NMEA and AIS coding as they are really two different functions. However, a convenience library is provided in this repository that combines this library with a golang NMEA decoder.
+Many other libraries tightly integrate a NMEA (VDM/VDO) decoder with the AIS decoder. This is handy if you use a complete receiver that delivers NMEA sentences, but can be limiting. For example, you may have a low level RF receiver connected directly to an embedded system. I feel it is best to split NMEA and AIS coding as they are really two different functions. However, a convenience library is provided in this repository that combines this library with a golang NMEA decoder and a self-developed NMEA encoder.
 
 **How to use it**
 
