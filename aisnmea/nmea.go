@@ -128,6 +128,9 @@ func (nc *NMEACodec) EncodeSentence(p VdmPacket) []string {
 	}
 
 	maxDataLength := nc.MaxLineLength - 3 - 2 - 1 - 16 //Subtract: *CRC, \r\n, !, AIVDM,x,y,z,c,,f
+	if maxDataLength < 1 {
+		maxDataLength = 1
+	}
 
 	var output []string
 
