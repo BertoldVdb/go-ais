@@ -100,8 +100,7 @@ func (v *vdmAssembler) process(vdm *nmea.VDMVDO) (VdmPacket, bool) {
 		v.msgMap[key] = workMsg
 	}
 
-	if len(workMsg.vdms) >= int(vdm.NumFragments) &&
-		workMsg.received&allMsg == allMsg {
+	if len(workMsg.vdms) >= int(vdm.NumFragments) && (workMsg.received&allMsg == allMsg) {
 		var fullPayload []byte
 
 		/* Ok, we have all parts, reassemble */

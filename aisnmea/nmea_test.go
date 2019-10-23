@@ -14,7 +14,7 @@ import (
 
 func TestWrongType(t *testing.T) {
 	nm := NMEACodecNew(ais.CodecNew(false, false))
-	err := nm.ParseSentence("$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A")
+	_, err := nm.ParseSentence("$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A")
 
 	if err.Error() != SentenceNotVDMVDO {
 		t.Error("Wrong sentence returned invalid error")
@@ -23,7 +23,7 @@ func TestWrongType(t *testing.T) {
 
 func TestInvalid(t *testing.T) {
 	nm := NMEACodecNew(ais.CodecNew(false, false))
-	err := nm.ParseSentence("$Not a NMEA sentence*bb")
+	_, err := nm.ParseSentence("$Not a NMEA sentence*bb")
 
 	if err == nil {
 		t.Error("Invalid sentence did not return error")
@@ -32,7 +32,7 @@ func TestInvalid(t *testing.T) {
 
 func TestTooManyFragments(t *testing.T) {
 	nm := NMEACodecNew(ais.CodecNew(false, false))
-	err := nm.ParseSentence("!AIVDM,30,1,,A,13u08p0000QDeLNO=PvHU3M>0>`<,0*32")
+	_, err := nm.ParseSentence("!AIVDM,30,1,,A,13u08p0000QDeLNO=PvHU3M>0>`<,0*32")
 
 	if err != nil {
 		t.Error("Error returned for valid message", err)
@@ -65,22 +65,6 @@ func TestNMEAReencode(t *testing.T) {
 	nm := NMEACodecNew(ais.CodecNew(false, false))
 	nm2 := NMEACodecNew(ais.CodecNew(false, false))
 
-	nm.DecodeCallback = func(decoded VdmPacket) {
-		encoded := nm.EncodeSentence(decoded)
-
-		nm2.DecodeCallback = func(decoded2 VdmPacket) {
-			if !bytes.Equal(decoded.Payload, decoded2.Payload) {
-				t.Error("Payload not identical")
-			}
-		}
-
-		for _, l := range encoded {
-			if nm2.ParseSentence(l) != nil {
-				t.Error("Could not decode sentence we just encoded")
-			}
-		}
-	}
-
 	file, err := os.Open("testdata/aistest.nmea")
 	if err != nil {
 		log.Fatal(err)
@@ -100,7 +84,29 @@ func TestNMEAReencode(t *testing.T) {
 
 		switch x := result.(type) {
 		case nmea.VDMVDO:
-			nm.ParseVDMVDO(&x)
+			decoded, err := nm.ParseVDMVDO(&x)
+			if err != nil {
+				t.Error("Decoding failed", err)
+				continue
+			}
+
+			if decoded != nil {
+				encoded := nm.EncodeSentence(*decoded)
+
+				for _, l := range encoded {
+					decoded2, err := nm2.ParseSentence(l)
+					if err != nil {
+						t.Error("Could not decode sentence we just encoded")
+						continue
+					}
+
+					if decoded2 != nil {
+						if !bytes.Equal(decoded.Payload, decoded2.Payload) {
+							t.Error("Payload not identical", decoded.Payload, decoded2.Payload)
+						}
+					}
+				}
+			}
 		}
 
 		if nm.BufferedMessages() > 5 {

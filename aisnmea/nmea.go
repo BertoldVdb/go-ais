@@ -19,13 +19,12 @@ const (
 type NMEACodec struct {
 	assembler      *vdmAssembler
 	codec          *ais.Codec
-	DecodeCallback func(packet VdmPacket)
 	MaxLineLength  int
 	seqNo          int
 	AppendChecksum bool
 }
 
-// NMEACodecNew creates a NMEACoded. You need to provide a configured ais.Codec
+// NMEACodecNew creates a NMEACodec. You need to provide a configured ais.Codec
 func NMEACodecNew(codec *ais.Codec) *NMEACodec {
 	a := &NMEACodec{
 		assembler:      vdmAssemblerCreate(),
@@ -37,18 +36,15 @@ func NMEACodecNew(codec *ais.Codec) *NMEACodec {
 	return a
 }
 
-func (nc *NMEACodec) handleAssembledMessage(assembled VdmPacket) {
-	if nc.DecodeCallback != nil {
-		channel := byte(1)
-		c := assembled.Channel
-		if c == '2' || c == 'b' || c == 'B' || c == '+' || c == 'H' || c == 'h' {
-			channel = byte(2)
-		}
-
-		assembled.Packet = nc.codec.DecodePacket(assembled.Payload)
-		assembled.Channel = channel
-		nc.DecodeCallback(assembled)
+func (nc *NMEACodec) handleAssembledMessage(assembled *VdmPacket) {
+	channel := byte(1)
+	c := assembled.Channel
+	if c == '2' || c == 'b' || c == 'B' || c == '+' || c == 'H' || c == 'h' {
+		channel = byte(2)
 	}
+
+	assembled.Packet = nc.codec.DecodePacket(assembled.Payload)
+	assembled.Channel = channel
 }
 
 // BufferedMessages return the number of messages buffered in the reassembler
@@ -57,33 +53,29 @@ func (nc *NMEACodec) BufferedMessages() int {
 }
 
 // ParseVDMVDO parses a message contained in a nmea.VDMVDO struct
-func (nc *NMEACodec) ParseVDMVDO(m *nmea.VDMVDO) error {
+func (nc *NMEACodec) ParseVDMVDO(m *nmea.VDMVDO) (*VdmPacket, error) {
 	assembled, ok := nc.assembler.process(m)
 	if ok {
-		nc.handleAssembledMessage(assembled)
+		nc.handleAssembledMessage(&assembled)
+		return &assembled, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ParseSentence decodes a NMEA sentence containing an AIS message
-func (nc *NMEACodec) ParseSentence(sentence string) error {
+func (nc *NMEACodec) ParseSentence(sentence string) (*VdmPacket, error) {
 	s, err := nmea.Parse(sentence)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	switch m := s.(type) {
 	case nmea.VDMVDO:
-		assembled, ok := nc.assembler.process(&m)
-		if ok {
-			nc.handleAssembledMessage(assembled)
-		}
-
-		return nil
+		return nc.ParseVDMVDO(&m)
 	}
 
-	return errors.New(SentenceNotVDMVDO)
+	return nil, errors.New(SentenceNotVDMVDO)
 }
 
 func valueToChar(value byte) byte {
