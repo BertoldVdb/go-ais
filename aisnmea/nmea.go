@@ -103,6 +103,10 @@ func (nc *NMEACodec) EncodeSentence(p VdmPacket) []string {
 	value := byte(0)
 	bitsUsed := 0
 	for i := 0; i < len(p.Payload); i++ {
+		if p.Payload[i] > 1 {
+			return nil
+		}
+
 		value <<= 1
 		value += p.Payload[i]
 		bitsUsed++
