@@ -159,7 +159,7 @@ func TestNMEATagBlockDecodeMultiSentence(t *testing.T) {
 	}
 
 	if msg == nil {
-		t.Error("No error, but no message for message-sentence message")
+		t.Error("No error, but no message for multi-sentence message")
 	}
 
 	if msg.TagBlock.Source != "2251" {
