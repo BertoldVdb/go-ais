@@ -88,6 +88,15 @@ func valueToChar(value byte) byte {
 	return result
 }
 
+func addChecksum(sentence string) string {
+	checksum := byte(0)
+	for i := 1; i < len(sentence); i++ {
+		checksum ^= sentence[i]
+	}
+
+	return fmt.Sprintf("%s*%02X", sentence, checksum)
+}
+
 // EncodeSentence encodes the provided packet into zero or more NMEA sentences
 func (nc *NMEACodec) EncodeSentence(p VdmPacket) []string {
 	if p.Payload == nil && p.Packet != nil {
@@ -142,6 +151,12 @@ func (nc *NMEACodec) EncodeSentence(p VdmPacket) []string {
 	if nc.MaxLineLength <= 0 || len(asciiPayload) <= maxDataLength {
 		output = make([]string, 1)
 		output[0] = fmt.Sprintf("!%s%s,1,1,,%c,%s,%d", p.TalkerID, p.MessageType, channel, asciiPayload, fillBits)
+		output[0] = addChecksum(output[0])
+
+		tagBlock := encodeTagBlock(&p.TagBlock, 1,1,0, false)
+		if tagBlock != "" {
+			output[0] = fmt.Sprintf("%s%s", tagBlock, output[0])
+		}
 	} else {
 		dataIndex := 0
 		msgIndex := 1
@@ -163,8 +178,16 @@ func (nc *NMEACodec) EncodeSentence(p VdmPacket) []string {
 				suffix = fillBits
 			}
 
-			output = append(output,
-				fmt.Sprintf("!%s%s,%d,%d,%d,%c,%s,%d", p.TalkerID, p.MessageType, msgNum, msgIndex, nc.seqNo, channel, sub, suffix))
+			sentence := fmt.Sprintf("!%s%s,%d,%d,%d,%c,%s,%d", p.TalkerID, p.MessageType, msgNum, msgIndex, nc.seqNo, channel, sub, suffix)
+
+			sentence = addChecksum(sentence)
+
+			tagBlock := encodeTagBlock(&p.TagBlock, msgIndex, msgNum, nc.seqNo, true)
+			if tagBlock != "" {
+				sentence = fmt.Sprintf("%s%s", tagBlock, sentence)
+			}
+
+			output = append(output, sentence)
 
 			msgIndex++
 		}
@@ -173,16 +196,6 @@ func (nc *NMEACodec) EncodeSentence(p VdmPacket) []string {
 		if nc.seqNo == 10 {
 			nc.seqNo = 0
 		}
-	}
-
-	/* Add checksums */
-	for i := range output {
-		checksum := byte(0)
-		for j := 1; j < len(output[i]); j++ {
-			checksum ^= output[i][j]
-		}
-
-		output[i] += fmt.Sprintf("*%02X", checksum)
 	}
 
 	return output
