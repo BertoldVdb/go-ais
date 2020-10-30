@@ -116,3 +116,61 @@ func TestNMEAReencode(t *testing.T) {
 	}
 
 }
+
+func TestNMEATagBlockDecodeSingleSentence(t *testing.T) {
+	nm := NMEACodecNew(ais.CodecNew(false, false))
+	msg, err := nm.ParseSentence("\\s:2156,c:1560234814*36\\!AIVDM,1,1,,B,23aDqDOP0S0:mk2Kv3Ip=wvpR>`<,0*3D")
+
+	if err != nil {
+		t.Error("Error returned for valid message", err)
+	}
+
+	if msg == nil {
+		t.Error("No error, but no message for single-sentence message")
+	}
+
+	if msg.TagBlock.Source != "2156" {
+		t.Error("TAG block Source not parsed")
+	}
+
+	if msg.TagBlock.Time != 1560234814 {
+		t.Error("TAG block Time not parsed")
+	}
+}
+
+func TestNMEATagBlockDecodeMultiSentence(t *testing.T) {
+	nm := NMEACodecNew(ais.CodecNew(false, false))
+	msg, err := nm.ParseSentence(
+		"\\g:1-2-2449555,s:2251,c:1560234814*7E\\!AIVDM,2,1,7,A,"+
+			"8h3OwjQKP@5UUEPPP121IoCol54cd0Wws7wwjp:@`P1UUFD9e2B94oCPH54M`3kw,0*7A")
+
+	if err != nil {
+		t.Error("Error returned for valid message", err)
+	}
+
+	if msg != nil {
+		t.Error("Premature return of message")
+	}
+
+	msg, err = nm.ParseSentence("\\g:2-2-2449555*63\\!AIVDM,2,2,7,A,sUwwjt;HvP1,2*4F")
+
+	if err != nil {
+		t.Error("Error returned for valid message", err)
+	}
+
+	if msg == nil {
+		t.Error("No error, but no message for multi-sentence message")
+	}
+
+	if msg.TagBlock.Source != "2251" {
+		t.Error("TAG block Source not parsed")
+	}
+
+	if msg.TagBlock.Time != 1560234814 {
+		t.Error("TAG block Time not parsed")
+	}
+
+	if msg.TagBlock.Grouping != "" {
+		t.Error("TAG block Grouping parsed (should be ignored)")
+	}
+}

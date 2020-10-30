@@ -12,6 +12,7 @@ type VdmPacket struct {
 	MessageType string
 	Payload     []byte
 	Packet      ais.Packet
+	TagBlock 	nmea.TagBlock
 }
 
 type vdmAssemblyWork struct {
@@ -74,6 +75,7 @@ func (v *vdmAssembler) process(vdm *nmea.VDMVDO) (VdmPacket, bool) {
 			TalkerID:    vdm.BaseSentence.TalkerID(),
 			MessageType: vdm.BaseSentence.DataType(),
 			Payload:     vdm.Payload,
+			TagBlock:    vdm.TagBlock,
 		}, true
 	}
 
@@ -113,6 +115,12 @@ func (v *vdmAssembler) process(vdm *nmea.VDMVDO) (VdmPacket, bool) {
 			}
 		}
 
+		/* Merge multiple TAG Blocks into a single one */
+		var composedTagBlock nmea.TagBlock
+		for _, vdm := range workMsg.vdms {
+			mergeTagBlocks(&composedTagBlock, &vdm.TagBlock)
+		}
+
 		delete(v.msgMap, key)
 
 		/* Full payload is assembled */
@@ -121,6 +129,7 @@ func (v *vdmAssembler) process(vdm *nmea.VDMVDO) (VdmPacket, bool) {
 			TalkerID:    vdm.BaseSentence.TalkerID(),
 			MessageType: vdm.BaseSentence.DataType(),
 			Payload:     fullPayload,
+			TagBlock:    composedTagBlock,
 		}, true
 	}
 
