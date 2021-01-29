@@ -93,3 +93,27 @@ func main() {
 }
 ```
 
+You can use a switch case to handle messages of different types:
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/BertoldVdb/go-ais"
+    "github.com/BertoldVdb/go-ais/aisnmea"
+)
+
+func main() {
+    nm := aisnmea.NMEACodecNew(ais.CodecNew(false, false))
+
+    decoded, _ := nm.ParseSentence("!AIVDM,1,1,,B,33aEP2hP00PBLRFMfCp;OOw<R>`<,0*49")
+    if decoded != nil {
+        switch t := decodec.Packet.(type) {
+        case ais.PositionReport:
+          fmt.Printf("received a position report: %+v\n", t)
+        case ais.ShipStaticData:
+          fmt.Printf("received a static data report: %+v\n", t)
+        }
+    }
+}
+```
