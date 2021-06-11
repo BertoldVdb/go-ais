@@ -35,7 +35,7 @@ type PositionReport struct {
 	Header                    `aisWidth:"38"`
 	Valid                     bool            `aisEncodeMaxLen:"168"`
 	NavigationalStatus        uint8           `aisWidth:"4"`
-	RateOfTurn                int8            `aisWidth:"8"`
+	RateOfTurn                int16           `aisWidth:"8"`
 	Sog                       Field10         `aisWidth:"10"`
 	PositionAccuracy          bool            `aisWidth:"1"`
 	Longitude                 FieldLatLonFine `aisWidth:"28"`
