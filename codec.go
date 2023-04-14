@@ -372,104 +372,7 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 	// HERE bE MY HAND ROLLED UGLYNESS
 	if t.FastParse {
 		if msgID >= 1 && msgID <= 3 {
-			// this is a position report, decode it
-			res := PositionReport{
-				Valid: true,
-			}
-			optional := false
-			minlength := uint(168)
-			minBitsForValid, ok := t.minValidMap["PositionReport"]
-			if !ok {
-				minBitsForValid = minlength
-			}
-			if len(payload)-int(offset) < int(minBitsForValid) {
-				if optional {
-					return nil
-				}
-				log.Println("ERROR: -1 PositionReport too short")
-				return nil
-			}
-
-			// Parse the header
-			msgID := uint8(extractNumber(payload, false, &offset, 6))
-			repeatIndicator := uint8(extractNumber(payload, false, &offset, 2))
-			userID := uint32(extractNumber(payload, false, &offset, 30))
-			header := Header{
-				MessageID:       msgID,
-				RepeatIndicator: repeatIndicator,
-				UserID:          userID,
-			}
-			res.Header = header
-
-			// parse the NavigationalStatus as a uint8
-			num := extractNumber(payload, false, &offset, 4)
-			res.NavigationalStatus = uint8(num)
-
-			// parse the RateOfTurn as a int16
-			num = extractNumber(payload, true, &offset, 8)
-			res.RateOfTurn = int16(num)
-
-			// Sog is a Float64 encoded as a Field10.
-			// Field10 are not signed ( surprisingly)
-			num = extractNumber(payload, false, &offset, 10)
-			if !t.FloatWithoutConversion {
-				res.Sog = Field10(num) / 10.0
-			} else {
-				res.Sog = Field10(num)
-			}
-
-			// PositionAccuracy is a bool encoded as a uint8.
-			num = extractNumber(payload, false, &offset, 1)
-			res.PositionAccuracy = num == 1
-
-			// Longitude is a Float64 encoded as a FieldLon.
-			num = extractNumber(payload, true, &offset, 28)
-			if !t.FloatWithoutConversion {
-				res.Longitude = FieldLatLonFine(num) / 600000.0
-			} else {
-				res.Longitude = FieldLatLonFine(num)
-			}
-
-			// Latitude is a Float64 encoded as a FieldLon.
-			num = extractNumber(payload, true, &offset, 27)
-			if !t.FloatWithoutConversion {
-				res.Latitude = FieldLatLonFine(num) / 600000.0
-			} else {
-				res.Latitude = FieldLatLonFine(num)
-			}
-
-			// Cog is a field10
-			num = extractNumber(payload, false, &offset, 12)
-			if !t.FloatWithoutConversion {
-				res.Cog = Field10(num) / 10.0
-			} else {
-				res.Cog = Field10(num)
-			}
-
-			// TrueHeading is a uint16 with width 9
-			num = extractNumber(payload, false, &offset, 9)
-			res.TrueHeading = uint16(num)
-
-			// Timestamp is a uint8 with width 6
-			num = extractNumber(payload, false, &offset, 6)
-			res.Timestamp = uint8(num)
-
-			// SpecialManoeuvre is a uint8 with width 2
-			num = extractNumber(payload, false, &offset, 2)
-			res.SpecialManoeuvreIndicator = uint8(num)
-
-			// Spare is a uint8 with width 3 and encodeAs:0
-			res.Spare = uint8(0)
-			offset += 3
-
-			// Raim is a bool encoded with width 1
-			num = extractNumber(payload, false, &offset, 1)
-			res.Raim = num == 1
-
-			num = extractNumber(payload, false, &offset, 19)
-			res.CommunicationState = uint32(num)
-
-			return res
+			return parsePositionReport(payload, t, &offset)
 		}
 	}
 	if msgID >= 1 && msgID <= 27 {
@@ -484,6 +387,109 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 	}
 
 	return nil
+}
+
+type parseFunc func([]byte, *Codec, uint) Packet
+
+func parsePositionReport2(payload []byte, t *Codec, offset *uint) Packet {
+	// this is a position report, decode it
+	res := PositionReport{
+		Valid: true,
+	}
+	optional := false
+	minlength := uint(168)
+	minBitsForValid, ok := t.minValidMap["PositionReport"]
+	if !ok {
+		minBitsForValid = minlength
+	}
+	if len(payload)-int(*offset) < int(minBitsForValid) {
+		if optional {
+			return nil
+		}
+		log.Println("ERROR: -1 PositionReport too short")
+		return nil
+	}
+
+	// Parse the header
+	msgID := uint8(extractNumber(payload, false, offset, 6))
+	repeatIndicator := uint8(extractNumber(payload, false, offset, 2))
+	userID := uint32(extractNumber(payload, false, offset, 30))
+	header := Header{
+		MessageID:       msgID,
+		RepeatIndicator: repeatIndicator,
+		UserID:          userID,
+	}
+	res.Header = header
+
+	// parse the NavigationalStatus as a uint8
+	num := extractNumber(payload, false, offset, 4)
+	res.NavigationalStatus = uint8(num)
+
+	// parse the RateOfTurn as a int16
+	num = extractNumber(payload, true, offset, 8)
+	res.RateOfTurn = int16(num)
+
+	// Sog is a Float64 encoded as a Field10.
+	// Field10 are not signed ( surprisingly)
+	num = extractNumber(payload, false, offset, 10)
+	if !t.FloatWithoutConversion {
+		res.Sog = Field10(num) / 10.0
+	} else {
+		res.Sog = Field10(num)
+	}
+
+	// PositionAccuracy is a bool encoded as a uint8.
+	num = extractNumber(payload, false, offset, 1)
+	res.PositionAccuracy = num == 1
+
+	// Longitude is a Float64 encoded as a FieldLon.
+	num = extractNumber(payload, true, offset, 28)
+	if !t.FloatWithoutConversion {
+		res.Longitude = FieldLatLonFine(num) / 600000.0
+	} else {
+		res.Longitude = FieldLatLonFine(num)
+	}
+
+	// Latitude is a Float64 encoded as a FieldLon.
+	num = extractNumber(payload, true, offset, 27)
+	if !t.FloatWithoutConversion {
+		res.Latitude = FieldLatLonFine(num) / 600000.0
+	} else {
+		res.Latitude = FieldLatLonFine(num)
+	}
+
+	// Cog is a field10
+	num = extractNumber(payload, false, offset, 12)
+	if !t.FloatWithoutConversion {
+		res.Cog = Field10(num) / 10.0
+	} else {
+		res.Cog = Field10(num)
+	}
+
+	// TrueHeading is a uint16 with width 9
+	num = extractNumber(payload, false, offset, 9)
+	res.TrueHeading = uint16(num)
+
+	// Timestamp is a uint8 with width 6
+	num = extractNumber(payload, false, offset, 6)
+	res.Timestamp = uint8(num)
+
+	// SpecialManoeuvre is a uint8 with width 2
+	num = extractNumber(payload, false, offset, 2)
+	res.SpecialManoeuvreIndicator = uint8(num)
+
+	// Spare is a uint8 with width 3 and encodeAs:0
+	res.Spare = uint8(0)
+	*offset += 3
+
+	// Raim is a bool encoded with width 1
+	num = extractNumber(payload, false, offset, 1)
+	res.Raim = num == 1
+
+	num = extractNumber(payload, false, offset, 19)
+	res.CommunicationState = uint32(num)
+
+	return res
 }
 
 func encodeNumber(packet []byte, isSigned bool, width uint, number int64) ([]byte, bool) {
