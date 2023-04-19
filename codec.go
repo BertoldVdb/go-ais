@@ -371,8 +371,8 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 
 	// HERE bE MY HAND ROLLED UGLYNESS
 	if t.FastParse {
-		if msgID >= 1 && msgID <= 3 {
-			return parsePositionReport(payload, t, &offset)
+		if fn, canFastParse := mapper[msgID]; canFastParse {
+			return fn(t, payload, &offset)
 		}
 	}
 	if msgID >= 1 && msgID <= 27 {
