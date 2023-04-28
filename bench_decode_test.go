@@ -7,6 +7,7 @@ import (
 	"github.com/BertoldVdb/go-ais/aisnmea"
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -42,9 +43,14 @@ func readFileTest(b *testing.B, benchFile string, parseFast bool) {
 	stat, err := fp.Stat()
 	b.SetBytes(stat.Size())
 	defer fp.Close()
-	reader, err = gzip.NewReader(fp)
-	if err != nil {
-		b.Fatal("could not create gzip reader", err)
+
+	if strings.Contains(benchFile, ".gz") {
+		reader, err = gzip.NewReader(fp)
+		if err != nil {
+			b.Fatal("could not create gzip reader", err)
+		}
+	} else {
+		reader = fp
 	}
 
 	// create line by line scanner, read each line and decode it
