@@ -13,7 +13,7 @@ import (
 )
 
 func TestWrongType(t *testing.T) {
-	nm := NMEACodecNew(ais.CodecNew(false, false))
+	nm := NMEACodecNew(ais.CodecNew(false, false, false))
 	_, err := nm.ParseSentence("$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A")
 
 	if err.Error() != SentenceNotVDMVDO {
@@ -22,7 +22,7 @@ func TestWrongType(t *testing.T) {
 }
 
 func TestInvalid(t *testing.T) {
-	nm := NMEACodecNew(ais.CodecNew(false, false))
+	nm := NMEACodecNew(ais.CodecNew(false, false, false))
 	_, err := nm.ParseSentence("$Not a NMEA sentence*bb")
 
 	if err == nil {
@@ -31,7 +31,7 @@ func TestInvalid(t *testing.T) {
 }
 
 func TestTooManyFragments(t *testing.T) {
-	nm := NMEACodecNew(ais.CodecNew(false, false))
+	nm := NMEACodecNew(ais.CodecNew(false, false, false))
 	_, err := nm.ParseSentence("!AIVDM,30,1,,A,13u08p0000QDeLNO=PvHU3M>0>`<,0*32")
 
 	if err != nil {
@@ -44,7 +44,7 @@ func TestTooManyFragments(t *testing.T) {
 }
 
 func TestFailedEncode(t *testing.T) {
-	nm := NMEACodecNew(ais.CodecNew(false, false))
+	nm := NMEACodecNew(ais.CodecNew(false, false, false))
 
 	p := VdmPacket{}
 
@@ -62,8 +62,8 @@ func TestFailedEncode(t *testing.T) {
 }
 
 func TestNMEAReencode(t *testing.T) {
-	nm := NMEACodecNew(ais.CodecNew(false, false))
-	nm2 := NMEACodecNew(ais.CodecNew(false, false))
+	nm := NMEACodecNew(ais.CodecNew(false, false, false))
+	nm2 := NMEACodecNew(ais.CodecNew(false, false, false))
 
 	file, err := os.Open("testdata/aistest.nmea")
 	if err != nil {
@@ -118,7 +118,7 @@ func TestNMEAReencode(t *testing.T) {
 }
 
 func TestNMEATagBlockDecodeSingleSentence(t *testing.T) {
-	nm := NMEACodecNew(ais.CodecNew(false, false))
+	nm := NMEACodecNew(ais.CodecNew(false, false, false))
 	msg, err := nm.ParseSentence("\\s:2156,c:1560234814*36\\!AIVDM,1,1,,B,23aDqDOP0S0:mk2Kv3Ip=wvpR>`<,0*3D")
 
 	if err != nil {
@@ -139,9 +139,9 @@ func TestNMEATagBlockDecodeSingleSentence(t *testing.T) {
 }
 
 func TestNMEATagBlockDecodeMultiSentence(t *testing.T) {
-	nm := NMEACodecNew(ais.CodecNew(false, false))
+	nm := NMEACodecNew(ais.CodecNew(false, false, false))
 	msg, err := nm.ParseSentence(
-		"\\g:1-2-2449555,s:2251,c:1560234814*7E\\!AIVDM,2,1,7,A,"+
+		"\\g:1-2-2449555,s:2251,c:1560234814*7E\\!AIVDM,2,1,7,A," +
 			"8h3OwjQKP@5UUEPPP121IoCol54cd0Wws7wwjp:@`P1UUFD9e2B94oCPH54M`3kw,0*7A")
 
 	if err != nil {

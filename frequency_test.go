@@ -18,7 +18,7 @@ func TestChannelToFrequency(t *testing.T) {
 		{11111, 0}, /* A channel that does not exist */
 	}
 
-	x := CodecNew(false, false)
+	x := CodecNew(false, false, false)
 
 	for _, v := range values {
 		myFreq := x.ChannelToFrequency(v.channel)
