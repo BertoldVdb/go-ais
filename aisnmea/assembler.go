@@ -1,6 +1,8 @@
 package aisnmea
 
 import (
+	"sync"
+
 	"github.com/BertoldVdb/go-ais"
 	nmea "github.com/adrianmo/go-nmea"
 )
@@ -12,7 +14,7 @@ type VdmPacket struct {
 	MessageType string
 	Payload     []byte
 	Packet      ais.Packet
-	TagBlock 	nmea.TagBlock
+	TagBlock    nmea.TagBlock
 }
 
 type vdmAssemblyWork struct {
@@ -28,10 +30,14 @@ type vdmAssembler struct {
 	nextCleanup     uint64
 	cleanupInterval uint64
 
-	msgMap map[uint32]*vdmAssemblyWork
+	msgMap   map[uint32]*vdmAssemblyWork
+	msgMutex sync.RWMutex
 }
 
 func (v *vdmAssembler) cleanup() {
+	v.msgMutex.Lock()
+	defer v.msgMutex.Unlock()
+
 	for key, value := range v.msgMap {
 		if v.msgCounter >= value.expiryCounter {
 			delete(v.msgMap, key)
@@ -40,6 +46,9 @@ func (v *vdmAssembler) cleanup() {
 }
 
 func (v *vdmAssembler) bufferedMessages() int {
+	v.msgMutex.RLock()
+	defer v.msgMutex.RUnlock()
+
 	result := 0
 	for _, k := range v.msgMap {
 		result += len(k.vdms)
@@ -86,6 +95,9 @@ func (v *vdmAssembler) process(vdm *nmea.VDMVDO) (VdmPacket, bool) {
 	if vdm.Type == nmea.TypeVDO {
 		key |= uint32(1) << 31
 	}
+
+	v.msgMutex.Lock()
+	defer v.msgMutex.Unlock()
 
 	workMsg, ok := v.msgMap[key]
 	if !ok {
