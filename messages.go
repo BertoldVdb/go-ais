@@ -1,3 +1,4 @@
+//go:generate go run ./parser_generator --input=messages.go
 package ais
 
 import (
@@ -212,9 +213,10 @@ type StandardClassBPositionReport struct {
 // use of Message 18 in the ITDMA communication state. This message should be transmitted immediately
 // after the following parameter values change: dimension of ship/reference for position or type of
 // electronic position fixing device.
-//   For future equipment: this message is not needed and should not be used. All content is covered by
-//   Message 18, Message 24A and 24B.
-//   For legacy equipment: this message should be used by Class B shipborne mobile equipment.
+//
+//	For future equipment: this message is not needed and should not be used. All content is covered by
+//	Message 18, Message 24A and 24B.
+//	For legacy equipment: this message should be used by Class B shipborne mobile equipment.
 type ExtendedClassBPositionReport struct {
 	Header           `aisWidth:"38"`
 	Valid            bool            `aisEncodeMaxLen:"312"`
@@ -330,7 +332,7 @@ type StaticDataReport struct {
 // and Class B “SO” equipped vessels (typically by satellite). This message has a similar content
 // to Messages 1, 2 and 3, but the total number of bits has been compressed to allow for increased
 // propagation delays associated with long-range detection. Refer to Annex 4 for details on
-//Long-Range applications.
+// Long-Range applications.
 type LongRangeAisBroadcastMessage struct {
 	Header             `aisWidth:"38"`
 	Valid              bool              `aisEncodeMaxLen:"96"`
