@@ -34,10 +34,10 @@ func assert(condition bool, err string) {
 	}
 }
 
-// CodecNew creates and initializes the AIS parser. The two parameters allow accepting
+// CodecNewFast creates and initializes the AIS parser. The first two parameters allow accepting
 // messages that a few types of existing encoders seem to transmit with invalid length.
-// This is very rare, passing false to both should be fine.
-func CodecNew(acceptShortAck bool, acceptShortShipStaticData bool, parseFast bool) *Codec {
+// This is very rare, passing false to both should be fine. The last parameter enables a fast decoder.
+func CodecNewFast(acceptShortAck bool, acceptShortShipStaticData bool, parseFast bool) *Codec {
 	t := &Codec{}
 
 	t.minValidMap = make(map[string]uint)
@@ -52,6 +52,13 @@ func CodecNew(acceptShortAck bool, acceptShortShipStaticData bool, parseFast boo
 
 	t.FastParse = parseFast
 	return t
+}
+
+// CodecNew creates and initializes the AIS parser. The two parameters allow accepting
+// messages that a few types of existing encoders seem to transmit with invalid length.
+// This is very rare, passing false to both should be fine.
+func CodecNew(acceptShortAck bool, acceptShortShipStaticData bool) *Codec {
+	return CodecNewFast(acceptShortAck, acceptShortShipStaticData, false)
 }
 
 // ChannelToFrequency converts an AIS channel number into its frequency in Hz
