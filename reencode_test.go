@@ -56,7 +56,7 @@ func tryFile(t *testing.T, x *Codec, msgID int) {
 }
 
 func TestReEncode(t *testing.T) {
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 
 	/* Convenience conversion disabled to avoid float inaccuracies */
 	x.FloatWithoutConversion = true
@@ -78,7 +78,7 @@ func checkFloat(a float64, b float64) bool {
 }
 
 func TestFloatReEncoder(t *testing.T) {
-	x := CodecNew(true, true, false)
+	x := CodecNew(true, true)
 	x.DecoderCheckFixedValues = true
 
 	packet := PositionReport{
@@ -135,7 +135,7 @@ func TestFloatReEncoder(t *testing.T) {
 }
 
 func testInterfacecInternal(p Packet, t *testing.T) (bool, int, uint32) {
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 
 	encoded := x.EncodePacket(p)
 	if encoded == nil {
@@ -198,7 +198,7 @@ func TestInterfaceAccess(t *testing.T) {
 }
 
 func testEmptyArray(t *testing.T, slotValid bool) bool {
-	x := CodecNew(true, true, false)
+	x := CodecNew(true, true)
 
 	packet := BinaryAcknowledge{
 		Valid: true,
@@ -245,7 +245,7 @@ func TestEmptyPayloadInArrayMessages(t *testing.T) {
 }
 
 func testValidateFailCorrupt(t *testing.T, corruptSpare bool, packetType bool) bool {
-	x := CodecNew(true, true, false)
+	x := CodecNew(true, true)
 	x.DecoderCheckFixedValues = true
 
 	if !packetType {

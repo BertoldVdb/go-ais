@@ -9,11 +9,11 @@ import (
 )
 
 func TestPositionParse(t *testing.T) {
-	fastParse := CodecNew(false, false, true)
+	fastParse := CodecNewFast(false, false, true)
 	/* Convenience conversion disabled to avoid float inaccuracies */
 	fastParse.FloatWithoutConversion = true
 
-	slowParse := CodecNew(false, false, false)
+	slowParse := CodecNewFast(false, false, false)
 	slowParse.FloatWithoutConversion = true
 
 	for msgID := 1; msgID <= 27; msgID++ {
