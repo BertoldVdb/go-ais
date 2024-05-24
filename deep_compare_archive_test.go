@@ -13,7 +13,7 @@ import (
 )
 
 func readAllPackets(t *testing.T, benchFile string, parseFast bool, cb func(eachPacket *aisnmea.VdmPacket)) {
-	c := ais.CodecNew(false, false, parseFast)
+	c := ais.CodecNewFast(false, false, parseFast)
 	nm := aisnmea.NMEACodecNew(c)
 	var reader io.Reader
 	fp, err := os.Open(benchFile)

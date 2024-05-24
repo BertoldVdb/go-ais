@@ -12,7 +12,7 @@ import (
 )
 
 func runTest(b *testing.B, parseFast bool) {
-	x := ais.CodecNew(false, false, parseFast)
+	x := ais.CodecNewFast(false, false, parseFast)
 	line := "000001000011100000000111101001010010000000000000000000000000011111110111110111001101001000100000111001110001011110001000101011000101000111011110000000001110101000001100"
 	source := []byte(line)
 	/* Convert ascii '0' and '1' to real 0 and 1 */
@@ -33,7 +33,7 @@ func BenchmarkDecode(b *testing.B) {
 }
 
 func readFileTest(b *testing.B, benchFile string, parseFast bool) {
-	c := ais.CodecNew(false, false, parseFast)
+	c := ais.CodecNewFast(false, false, parseFast)
 	nm := aisnmea.NMEACodecNew(c)
 	var reader io.Reader
 	fp, err := os.Open(benchFile)

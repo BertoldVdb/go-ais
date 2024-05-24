@@ -3,7 +3,7 @@ package ais
 import "testing"
 
 func tryEncodeTooLong(len int) bool {
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 
 	packet := SingleSlotBinaryMessage{
 		Valid:              true,
@@ -31,7 +31,7 @@ func TestEncodeFailTooLong(t *testing.T) {
 }
 
 func tryEncodeWithString(s string) bool {
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 
 	packet := SafetyBroadcastMessage{
 		Valid: true,
@@ -87,7 +87,7 @@ func TestEncodeNumberTooLarge(t *testing.T) {
 }
 
 func TestEncodeFailNoUsefulData(t *testing.T) {
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 
 	packet := BinaryAcknowledge{
 		Valid: true,
@@ -109,7 +109,7 @@ func TestEncodeFailNoUsefulData(t *testing.T) {
 }
 
 func tryEncodeWithMessageID(mID uint8) bool {
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 
 	packet := PositionReport{
 		Valid: true,
@@ -149,7 +149,7 @@ func TestEncodeFailWrongMsgID(t *testing.T) {
 }
 
 func tryEncodeTooLargeNumber(number uint16) bool {
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 
 	packet := ShipStaticData{
 		Valid: true,
@@ -183,7 +183,7 @@ func TestEncodeFloatOutOfRange(t *testing.T) {
 		UserID:    1337,
 	}
 
-	x := CodecNew(false, false, false)
+	x := CodecNew(false, false)
 	if x.EncodePacket(staticData) != nil {
 		t.Error("Encoded oversized float")
 	}
