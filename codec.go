@@ -280,14 +280,16 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 			checkValue := false
 			correctValue := int64(0)
 
-			encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisCheckValue")
-			if !encodeAsFound && t.DecoderCheckFixedValues {
-				encodeAsStr, encodeAsFound = st.Field(i).Tag.Lookup("aisEncodeAs")
-			}
+			if t.DecoderCheckFixedValues {
+				encodeAsStr, encodeAsFound := st.Field(i).Tag.Lookup("aisCheckValue")
+				if !encodeAsFound {
+					encodeAsStr, encodeAsFound = st.Field(i).Tag.Lookup("aisEncodeAs")
+				}
 
-			if encodeAsFound {
-				correctValue, _ = strconv.ParseInt(encodeAsStr, 10, 64)
-				checkValue = true
+				if encodeAsFound {
+					correctValue, _ = strconv.ParseInt(encodeAsStr, 10, 64)
+					checkValue = true
+				}
 			}
 
 			basicValue = extractNumber(payload, isSigned(field), offset, v)
