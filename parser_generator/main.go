@@ -361,6 +361,13 @@ var length uint
 								output += `length = ` + strconv.Itoa(field.width) + `
 `
 							}
+
+							output += `
+	if int(length) < 0 {
+		return nil
+	}
+`
+
 							output += `p.` + field.name + ` = payload[*offset:*offset+length]
 	*offset += length
 `

@@ -446,6 +446,10 @@ func parseAddressedBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 
 	// BinaryData is an array of bytes
 	length = uint(len(payload)) - *offset
+
+	if int(length) < 0 {
+		return nil
+	}
 	p.BinaryData = payload[*offset : *offset+length]
 	*offset += length
 
@@ -488,6 +492,10 @@ func parseBinaryBroadcastMessage(t *Codec, payload []byte, offset *uint) Packet 
 
 	// BinaryData is an array of bytes
 	length = uint(len(payload)) - *offset
+
+	if int(length) < 0 {
+		return nil
+	}
 	p.BinaryData = payload[*offset : *offset+length]
 	*offset += length
 
@@ -809,6 +817,10 @@ func parseGnssBroadcastBinaryMessage(t *Codec, payload []byte, offset *uint) Pac
 
 	// Data is an array of bytes
 	length = uint(len(payload)) - *offset
+
+	if int(length) < 0 {
+		return nil
+	}
 	p.Data = payload[*offset : *offset+length]
 	*offset += length
 
@@ -2285,6 +2297,10 @@ func parseSingleSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet
 
 	// Payload is an array of bytes
 	length = uint(len(payload)) - *offset
+
+	if int(length) < 0 {
+		return nil
+	}
 	p.Payload = payload[*offset : *offset+length]
 	*offset += length
 
@@ -2367,6 +2383,10 @@ func parseMultiSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 
 	// Payload is an array of bytes
 	length = uint(len(payload)) - *offset - 24
+
+	if int(length) < 0 {
+		return nil
+	}
 	p.Payload = payload[*offset : *offset+length]
 	*offset += length
 
