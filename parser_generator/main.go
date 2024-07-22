@@ -220,8 +220,9 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 							}
 							if width < 0 {
 								fixedLength = true
+							} else {
+								minLength += uint(width)
 							}
-							minLength += uint(width)
 						} else if tagName == "aisDependsBit" {
 							if tagValue[0] == '~' {
 								dependsAs0 = true
@@ -265,7 +266,9 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 						break
 					}
 				}
+				rv := "p"
 				if isPacketType {
+					rv = "nil"
 					output += `func parse` + name + `(t *Codec, payload []byte, offset *uint) Packet {
 `
 				} else {
@@ -273,18 +276,13 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 				}
 				output += `
 	p := ` + name + `{}
-	var optional bool
 	minLength := uint(` + strconv.Itoa(int(minLength)) + `)
     minBitsForValid, ok := t.minValidMap["` + name + `"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return ` + rv + `
 	}
 var length uint
     `
@@ -325,6 +323,7 @@ var length uint
 						output += `
 	p.` + field.typ + ` = parse` + field.typ + `(t, payload, offset)
 `
+
 					} else if field.isArray {
 						output += `
 	// ` + field.name + ` is an array of ` + field.typ + `s
@@ -340,6 +339,13 @@ var length uint
 							for i := 0; i < field.arrayLength; i++ {
 								output += `elems[` + strconv.Itoa(i) + `] = parse` + field.typ + `(t, payload, offset)
 `
+								if field.width > 0 || i == 0 {
+									output += `
+	if !elems[` + strconv.Itoa(i) + `].Valid {
+		return nil
+	}
+`
+								}
 							}
 							output += `p.` + field.name + ` = elems`
 						case "byte":
@@ -380,7 +386,7 @@ var length uint
 								dependValue = "0"
 							}
 							output += `(optional)
-	if len(payload) < ` + strconv.Itoa(field.dependsBit) + ` {
+	if len(payload) <= ` + strconv.Itoa(field.dependsBit) + ` {
 		// todo set Valid=false??
 		return nil
 	}
@@ -398,10 +404,6 @@ length = ` + strconv.Itoa(field.width) + "\n"
 						}
 						// simple type parsing
 						switch field.typ {
-						case "ChannelManagementUnicastData":
-							fallthrough
-						case "ChannelManagementBroadcastData":
-							fallthrough
 						case "InterrogationStation2":
 							fallthrough
 						case "InterrogationStation1Message1":
@@ -413,6 +415,18 @@ length = ` + strconv.Itoa(field.width) + "\n"
 						case "StaticDataReportB":
 							fallthrough
 						case "FieldApplicationIdentifier":
+							output += `p.` + field.name + ` = parse` + field.typ + `(t, payload, offset)
+`
+							if field.width > 0 {
+								output += `
+	if !p.` + field.name + `.Valid {
+		return nil
+	}
+`
+							}
+						case "ChannelManagementUnicastData":
+							fallthrough
+						case "ChannelManagementBroadcastData":
 							fallthrough
 						case "FieldETA":
 							fallthrough
@@ -486,6 +500,13 @@ length = ` + strconv.Itoa(field.width) + "\n"
 						}
 					}
 
+				}
+				if isPacketType {
+					output += `
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+`
 				}
 				output += `
 	return p

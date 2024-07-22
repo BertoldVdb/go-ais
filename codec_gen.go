@@ -33,17 +33,12 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet{
 
 func parseHeader(t *Codec, payload []byte, offset *uint) Header {
 	p := Header{}
-	var optional bool
 	minLength := uint(38)
 	minBitsForValid, ok := t.minValidMap["Header"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -74,18 +69,13 @@ func parseHeader(t *Codec, payload []byte, offset *uint) Header {
 func parsePositionReport(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := PositionReport{}
-	var optional bool
 	minLength := uint(168)
 	minBitsForValid, ok := t.minValidMap["PositionReport"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -183,24 +173,23 @@ func parsePositionReport(t *Codec, payload []byte, offset *uint) Packet {
 	p.Raim = num == 1
 	p.CommunicationStateNoItdma = parseCommunicationStateNoItdma(t, payload, offset)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseBaseStationReport(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := BaseStationReport{}
-	var optional bool
 	minLength := uint(168)
 	minBitsForValid, ok := t.minValidMap["BaseStationReport"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -295,24 +284,23 @@ func parseBaseStationReport(t *Codec, payload []byte, offset *uint) Packet {
 	p.Raim = num == 1
 	p.CommunicationStateNoItdma = parseCommunicationStateNoItdma(t, payload, offset)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseShipStaticData(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := ShipStaticData{}
-	var optional bool
 	minLength := uint(424)
 	minBitsForValid, ok := t.minValidMap["ShipStaticData"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -391,24 +379,23 @@ func parseShipStaticData(t *Codec, payload []byte, offset *uint) Packet {
 
 	num = extractNumber(payload, false, offset, length)
 	p.Spare = num == 1
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseAddressedBinaryMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := AddressedBinaryMessage{}
-	var optional bool
-	minLength := uint(87)
+	minLength := uint(88)
 	minBitsForValid, ok := t.minValidMap["AddressedBinaryMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -444,6 +431,10 @@ func parseAddressedBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 	length = 16
 	p.ApplicationID = parseFieldApplicationIdentifier(t, payload, offset)
 
+	if !p.ApplicationID.Valid {
+		return nil
+	}
+
 	// BinaryData is an array of bytes
 	length = uint(len(payload)) - *offset
 
@@ -453,24 +444,23 @@ func parseAddressedBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 	p.BinaryData = payload[*offset : *offset+length]
 	*offset += length
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseBinaryBroadcastMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := BinaryBroadcastMessage{}
-	var optional bool
-	minLength := uint(55)
+	minLength := uint(56)
 	minBitsForValid, ok := t.minValidMap["BinaryBroadcastMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -490,6 +480,10 @@ func parseBinaryBroadcastMessage(t *Codec, payload []byte, offset *uint) Packet 
 	length = 16
 	p.ApplicationID = parseFieldApplicationIdentifier(t, payload, offset)
 
+	if !p.ApplicationID.Valid {
+		return nil
+	}
+
 	// BinaryData is an array of bytes
 	length = uint(len(payload)) - *offset
 
@@ -499,24 +493,23 @@ func parseBinaryBroadcastMessage(t *Codec, payload []byte, offset *uint) Packet 
 	p.BinaryData = payload[*offset : *offset+length]
 	*offset += length
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseStandardSearchAndRescueAircraftReport(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := StandardSearchAndRescueAircraftReport{}
-	var optional bool
 	minLength := uint(168)
 	minBitsForValid, ok := t.minValidMap["StandardSearchAndRescueAircraftReport"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -613,24 +606,23 @@ func parseStandardSearchAndRescueAircraftReport(t *Codec, payload []byte, offset
 	p.Raim = num == 1
 	p.CommunicationStateItdma = parseCommunicationStateItdma(t, payload, offset)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseCoordinatedUTCInquiry(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := CoordinatedUTCInquiry{}
-	var optional bool
 	minLength := uint(72)
 	minBitsForValid, ok := t.minValidMap["CoordinatedUTCInquiry"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -658,24 +650,23 @@ func parseCoordinatedUTCInquiry(t *Codec, payload []byte, offset *uint) Packet {
 	num = extractNumber(payload, false, offset, length)
 	p.Spare2 = uint8(num)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseAddessedSafetyMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := AddessedSafetyMessage{}
-	var optional bool
-	minLength := uint(71)
+	minLength := uint(72)
 	minBitsForValid, ok := t.minValidMap["AddessedSafetyMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -715,24 +706,23 @@ func parseAddessedSafetyMessage(t *Codec, payload []byte, offset *uint) Packet {
 	str = extractString(payload, offset, length, t.DropSpace)
 	p.Text = str
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseSafetyBroadcastMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := SafetyBroadcastMessage{}
-	var optional bool
-	minLength := uint(39)
+	minLength := uint(40)
 	minBitsForValid, ok := t.minValidMap["SafetyBroadcastMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -756,24 +746,23 @@ func parseSafetyBroadcastMessage(t *Codec, payload []byte, offset *uint) Packet 
 	str = extractString(payload, offset, length, t.DropSpace)
 	p.Text = str
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseGnssBroadcastBinaryMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := GnssBroadcastBinaryMessage{}
-	var optional bool
-	minLength := uint(79)
+	minLength := uint(80)
 	minBitsForValid, ok := t.minValidMap["GnssBroadcastBinaryMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -824,24 +813,23 @@ func parseGnssBroadcastBinaryMessage(t *Codec, payload []byte, offset *uint) Pac
 	p.Data = payload[*offset : *offset+length]
 	*offset += length
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseStandardClassBPositionReport(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := StandardClassBPositionReport{}
-	var optional bool
 	minLength := uint(168)
 	minBitsForValid, ok := t.minValidMap["StandardClassBPositionReport"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -957,24 +945,23 @@ func parseStandardClassBPositionReport(t *Codec, payload []byte, offset *uint) P
 	p.Raim = num == 1
 	p.CommunicationStateItdma = parseCommunicationStateItdma(t, payload, offset)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseExtendedClassBPositionReport(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := ExtendedClassBPositionReport{}
-	var optional bool
 	minLength := uint(312)
 	minBitsForValid, ok := t.minValidMap["ExtendedClassBPositionReport"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1097,24 +1084,23 @@ func parseExtendedClassBPositionReport(t *Codec, payload []byte, offset *uint) P
 	num = extractNumber(payload, false, offset, length)
 	p.Spare3 = uint8(num)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseAidsToNavigationReport(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := AidsToNavigationReport{}
-	var optional bool
-	minLength := uint(271)
+	minLength := uint(272)
 	minBitsForValid, ok := t.minValidMap["AidsToNavigationReport"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1215,24 +1201,23 @@ func parseAidsToNavigationReport(t *Codec, payload []byte, offset *uint) Packet 
 	str = extractString(payload, offset, length, t.DropSpace)
 	p.NameExtension = str
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseGroupAssignmentCommand(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := GroupAssignmentCommand{}
-	var optional bool
 	minLength := uint(160)
 	minBitsForValid, ok := t.minValidMap["GroupAssignmentCommand"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1330,22 +1315,21 @@ func parseGroupAssignmentCommand(t *Codec, payload []byte, offset *uint) Packet 
 	num = extractNumber(payload, false, offset, length)
 	p.Spare3 = uint8(num)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseStaticDataReportA(t *Codec, payload []byte, offset *uint) StaticDataReportA {
 	p := StaticDataReportA{}
-	var optional bool
 	minLength := uint(120)
 	minBitsForValid, ok := t.minValidMap["StaticDataReportA"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1364,17 +1348,12 @@ func parseStaticDataReportA(t *Codec, payload []byte, offset *uint) StaticDataRe
 
 func parseStaticDataReportB(t *Codec, payload []byte, offset *uint) StaticDataReportB {
 	p := StaticDataReportB{}
-	var optional bool
 	minLength := uint(128)
 	minBitsForValid, ok := t.minValidMap["StaticDataReportB"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1435,18 +1414,13 @@ func parseStaticDataReportB(t *Codec, payload []byte, offset *uint) StaticDataRe
 func parseStaticDataReport(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := StaticDataReport{}
-	var optional bool
 	minLength := uint(40)
 	minBitsForValid, ok := t.minValidMap["StaticDataReport"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1468,7 +1442,7 @@ func parseStaticDataReport(t *Codec, payload []byte, offset *uint) Packet {
 	num = extractNumber(payload, false, offset, length)
 	p.PartNumber = num == 1
 	// parsing ReportA as StaticDataReportA(optional)
-	if len(payload) < 39 {
+	if len(payload) <= 39 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -1477,10 +1451,14 @@ func parseStaticDataReport(t *Codec, payload []byte, offset *uint) Packet {
 		length = 120
 		p.ReportA = parseStaticDataReportA(t, payload, offset)
 
+		if !p.ReportA.Valid {
+			return nil
+		}
+
 	}
 
 	// parsing ReportB as StaticDataReportB(optional)
-	if len(payload) < 39 {
+	if len(payload) <= 39 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -1489,6 +1467,14 @@ func parseStaticDataReport(t *Codec, payload []byte, offset *uint) Packet {
 		length = 120
 		p.ReportB = parseStaticDataReportB(t, payload, offset)
 
+		if !p.ReportB.Valid {
+			return nil
+		}
+
+	}
+
+	if *offset > uint(len(payload)) {
+		return nil
 	}
 
 	return p
@@ -1497,18 +1483,13 @@ func parseStaticDataReport(t *Codec, payload []byte, offset *uint) Packet {
 func parseLongRangeAisBroadcastMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := LongRangeAisBroadcastMessage{}
-	var optional bool
 	minLength := uint(96)
 	minBitsForValid, ok := t.minValidMap["LongRangeAisBroadcastMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1576,22 +1557,21 @@ func parseLongRangeAisBroadcastMessage(t *Codec, payload []byte, offset *uint) P
 
 	num = extractNumber(payload, false, offset, length)
 	p.Spare = num == 1
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseBinaryAcknowledgeData(t *Codec, payload []byte, offset *uint) BinaryAcknowledgeData {
 	p := BinaryAcknowledgeData{}
-	var optional bool
 	minLength := uint(32)
 	minBitsForValid, ok := t.minValidMap["BinaryAcknowledgeData"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1618,18 +1598,13 @@ func parseBinaryAcknowledgeData(t *Codec, payload []byte, offset *uint) BinaryAc
 func parseBinaryAcknowledge(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := BinaryAcknowledge{}
-	var optional bool
 	minLength := uint(40)
 	minBitsForValid, ok := t.minValidMap["BinaryAcknowledge"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1648,26 +1623,29 @@ func parseBinaryAcknowledge(t *Codec, payload []byte, offset *uint) Packet {
 	// Destinations is an array of BinaryAcknowledgeDatas
 	var elems [4]BinaryAcknowledgeData
 	elems[0] = parseBinaryAcknowledgeData(t, payload, offset)
+
+	if !elems[0].Valid {
+		return nil
+	}
 	elems[1] = parseBinaryAcknowledgeData(t, payload, offset)
 	elems[2] = parseBinaryAcknowledgeData(t, payload, offset)
 	elems[3] = parseBinaryAcknowledgeData(t, payload, offset)
 	p.Destinations = elems
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseInterrogationStation1Message1(t *Codec, payload []byte, offset *uint) InterrogationStation1Message1 {
 	p := InterrogationStation1Message1{}
-	var optional bool
 	minLength := uint(48)
 	minBitsForValid, ok := t.minValidMap["InterrogationStation1Message1"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1699,17 +1677,12 @@ func parseInterrogationStation1Message1(t *Codec, payload []byte, offset *uint) 
 
 func parseInterrogationStation1Message2(t *Codec, payload []byte, offset *uint) InterrogationStation1Message2 {
 	p := InterrogationStation1Message2{}
-	var optional bool
 	minLength := uint(20)
 	minBitsForValid, ok := t.minValidMap["InterrogationStation1Message2"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1741,17 +1714,12 @@ func parseInterrogationStation1Message2(t *Codec, payload []byte, offset *uint) 
 
 func parseInterrogationStation2(t *Codec, payload []byte, offset *uint) InterrogationStation2 {
 	p := InterrogationStation2{}
-	var optional bool
 	minLength := uint(52)
 	minBitsForValid, ok := t.minValidMap["InterrogationStation2"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1796,18 +1764,13 @@ func parseInterrogationStation2(t *Codec, payload []byte, offset *uint) Interrog
 func parseInterrogation(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := Interrogation{}
-	var optional bool
 	minLength := uint(88)
 	minBitsForValid, ok := t.minValidMap["Interrogation"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1827,6 +1790,10 @@ func parseInterrogation(t *Codec, payload []byte, offset *uint) Packet {
 	length = 48
 	p.Station1Msg1 = parseInterrogationStation1Message1(t, payload, offset)
 
+	if !p.Station1Msg1.Valid {
+		return nil
+	}
+
 	// parsing Station1Msg2 as InterrogationStation1Message2
 	length = 0
 	p.Station1Msg2 = parseInterrogationStation1Message2(t, payload, offset)
@@ -1835,22 +1802,21 @@ func parseInterrogation(t *Codec, payload []byte, offset *uint) Packet {
 	length = 0
 	p.Station2 = parseInterrogationStation2(t, payload, offset)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseAssignedModeCommandData(t *Codec, payload []byte, offset *uint) AssignedModeCommandData {
 	p := AssignedModeCommandData{}
-	var optional bool
 	minLength := uint(52)
 	minBitsForValid, ok := t.minValidMap["AssignedModeCommandData"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1883,18 +1849,13 @@ func parseAssignedModeCommandData(t *Codec, payload []byte, offset *uint) Assign
 func parseAssignedModeCommand(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := AssignedModeCommand{}
-	var optional bool
 	minLength := uint(40)
 	minBitsForValid, ok := t.minValidMap["AssignedModeCommand"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1913,24 +1874,27 @@ func parseAssignedModeCommand(t *Codec, payload []byte, offset *uint) Packet {
 	// Commands is an array of AssignedModeCommandDatas
 	var elems [2]AssignedModeCommandData
 	elems[0] = parseAssignedModeCommandData(t, payload, offset)
+
+	if !elems[0].Valid {
+		return nil
+	}
 	elems[1] = parseAssignedModeCommandData(t, payload, offset)
 	p.Commands = elems
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseDataLinkManagementMessageData(t *Codec, payload []byte, offset *uint) DataLinkManagementMessageData {
 	p := DataLinkManagementMessageData{}
-	var optional bool
 	minLength := uint(30)
 	minBitsForValid, ok := t.minValidMap["DataLinkManagementMessageData"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -1969,18 +1933,13 @@ func parseDataLinkManagementMessageData(t *Codec, payload []byte, offset *uint) 
 func parseDataLinkManagementMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := DataLinkManagementMessage{}
-	var optional bool
 	minLength := uint(40)
 	minBitsForValid, ok := t.minValidMap["DataLinkManagementMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -1999,26 +1958,29 @@ func parseDataLinkManagementMessage(t *Codec, payload []byte, offset *uint) Pack
 	// Data is an array of DataLinkManagementMessageDatas
 	var elems [4]DataLinkManagementMessageData
 	elems[0] = parseDataLinkManagementMessageData(t, payload, offset)
+
+	if !elems[0].Valid {
+		return nil
+	}
 	elems[1] = parseDataLinkManagementMessageData(t, payload, offset)
 	elems[2] = parseDataLinkManagementMessageData(t, payload, offset)
 	elems[3] = parseDataLinkManagementMessageData(t, payload, offset)
 	p.Data = elems
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseChannelManagementBroadcastData(t *Codec, payload []byte, offset *uint) ChannelManagementBroadcastData {
 	p := ChannelManagementBroadcastData{}
-	var optional bool
 	minLength := uint(70)
 	minBitsForValid, ok := t.minValidMap["ChannelManagementBroadcastData"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -2070,17 +2032,12 @@ func parseChannelManagementBroadcastData(t *Codec, payload []byte, offset *uint)
 
 func parseChannelManagementUnicastData(t *Codec, payload []byte, offset *uint) ChannelManagementUnicastData {
 	p := ChannelManagementUnicastData{}
-	var optional bool
 	minLength := uint(70)
 	minBitsForValid, ok := t.minValidMap["ChannelManagementUnicastData"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -2117,18 +2074,13 @@ func parseChannelManagementUnicastData(t *Codec, payload []byte, offset *uint) C
 func parseChannelManagement(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := ChannelManagement{}
-	var optional bool
 	minLength := uint(98)
 	minBitsForValid, ok := t.minValidMap["ChannelManagement"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -2168,7 +2120,7 @@ func parseChannelManagement(t *Codec, payload []byte, offset *uint) Packet {
 	num = extractNumber(payload, false, offset, length)
 	p.LowPower = num == 1
 	// parsing Area as ChannelManagementBroadcastData(optional)
-	if len(payload) < 139 {
+	if len(payload) <= 139 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2180,7 +2132,7 @@ func parseChannelManagement(t *Codec, payload []byte, offset *uint) Packet {
 	}
 
 	// parsing Unicast as ChannelManagementUnicastData(optional)
-	if len(payload) < 139 {
+	if len(payload) <= 139 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2218,24 +2170,23 @@ func parseChannelManagement(t *Codec, payload []byte, offset *uint) Packet {
 	num = extractNumber(payload, false, offset, length)
 	p.Spare4 = uint32(num)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseSingleSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := SingleSlotBinaryMessage{}
-	var optional bool
-	minLength := uint(39)
+	minLength := uint(40)
 	minBitsForValid, ok := t.minValidMap["SingleSlotBinaryMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -2256,7 +2207,7 @@ func parseSingleSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet
 	num = extractNumber(payload, false, offset, length)
 	p.ApplicationIDValid = num == 1
 	// parsing DestinationID as uint32(optional)
-	if len(payload) < 38 {
+	if len(payload) <= 38 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2270,7 +2221,7 @@ func parseSingleSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet
 	}
 
 	// parsing Spare as uint8(optional)
-	if len(payload) < 38 {
+	if len(payload) <= 38 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2284,7 +2235,7 @@ func parseSingleSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet
 	}
 
 	// parsing ApplicationID as FieldApplicationIdentifier(optional)
-	if len(payload) < 39 {
+	if len(payload) <= 39 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2292,6 +2243,10 @@ func parseSingleSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet
 
 		length = 16
 		p.ApplicationID = parseFieldApplicationIdentifier(t, payload, offset)
+
+		if !p.ApplicationID.Valid {
+			return nil
+		}
 
 	}
 
@@ -2304,24 +2259,23 @@ func parseSingleSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet
 	p.Payload = payload[*offset : *offset+length]
 	*offset += length
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseMultiSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet {
 
 	p := MultiSlotBinaryMessage{}
-	var optional bool
-	minLength := uint(63)
+	minLength := uint(64)
 	minBitsForValid, ok := t.minValidMap["MultiSlotBinaryMessage"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
-		return p
+		return nil
 	}
 	var length uint
 
@@ -2342,7 +2296,7 @@ func parseMultiSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 	num = extractNumber(payload, false, offset, length)
 	p.ApplicationIDValid = num == 1
 	// parsing DestinationID as uint32(optional)
-	if len(payload) < 38 {
+	if len(payload) <= 38 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2356,7 +2310,7 @@ func parseMultiSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 	}
 
 	// parsing Spare1 as uint8(optional)
-	if len(payload) < 38 {
+	if len(payload) <= 38 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2370,7 +2324,7 @@ func parseMultiSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 	}
 
 	// parsing ApplicationID as FieldApplicationIdentifier(optional)
-	if len(payload) < 39 {
+	if len(payload) <= 39 {
 		// todo set Valid=false??
 		return nil
 	}
@@ -2378,6 +2332,10 @@ func parseMultiSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 
 		length = 16
 		p.ApplicationID = parseFieldApplicationIdentifier(t, payload, offset)
+
+		if !p.ApplicationID.Valid {
+			return nil
+		}
 
 	}
 
@@ -2398,22 +2356,21 @@ func parseMultiSlotBinaryMessage(t *Codec, payload []byte, offset *uint) Packet 
 
 	p.CommunicationStateItdma = parseCommunicationStateItdma(t, payload, offset)
 
+	if *offset > uint(len(payload)) {
+		return nil
+	}
+
 	return p
 }
 
 func parseFieldETA(t *Codec, payload []byte, offset *uint) FieldETA {
 	p := FieldETA{}
-	var optional bool
 	minLength := uint(20)
 	minBitsForValid, ok := t.minValidMap["FieldETA"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -2449,17 +2406,12 @@ func parseFieldETA(t *Codec, payload []byte, offset *uint) FieldETA {
 
 func parseFieldDimension(t *Codec, payload []byte, offset *uint) FieldDimension {
 	p := FieldDimension{}
-	var optional bool
 	minLength := uint(30)
 	minBitsForValid, ok := t.minValidMap["FieldDimension"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -2495,17 +2447,12 @@ func parseFieldDimension(t *Codec, payload []byte, offset *uint) FieldDimension 
 
 func parseFieldApplicationIdentifier(t *Codec, payload []byte, offset *uint) FieldApplicationIdentifier {
 	p := FieldApplicationIdentifier{}
-	var optional bool
 	minLength := uint(16)
 	minBitsForValid, ok := t.minValidMap["FieldApplicationIdentifier"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -2531,17 +2478,12 @@ func parseFieldApplicationIdentifier(t *Codec, payload []byte, offset *uint) Fie
 
 func parseCommunicationStateItdma(t *Codec, payload []byte, offset *uint) CommunicationStateItdma {
 	p := CommunicationStateItdma{}
-	var optional bool
 	minLength := uint(20)
 	minBitsForValid, ok := t.minValidMap["CommunicationStateItdma"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
@@ -2564,17 +2506,12 @@ func parseCommunicationStateItdma(t *Codec, payload []byte, offset *uint) Commun
 
 func parseCommunicationStateNoItdma(t *Codec, payload []byte, offset *uint) CommunicationStateNoItdma {
 	p := CommunicationStateNoItdma{}
-	var optional bool
 	minLength := uint(19)
 	minBitsForValid, ok := t.minValidMap["CommunicationStateNoItdma"]
 	if !ok {
 		minBitsForValid = minLength
 	}
 	if len(payload)-int(*offset) < int(minBitsForValid) {
-		if optional {
-			return p
-		}
-		// Not sure what to do in this error case.. it happens a lot in test but still passes
 		return p
 	}
 	var length uint
