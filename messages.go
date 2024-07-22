@@ -511,7 +511,7 @@ type MultiSlotBinaryMessage struct {
 	Spare1                  uint8                      `aisWidth:"2" aisDependsBit:"38" aisDependsField:"DestinationIDValid" aisEncodeAs:"0"`
 	ApplicationID           FieldApplicationIdentifier `aisWidth:"16" aisDependsBit:"39" aisDependsField:"ApplicationIDValid"`
 	Payload                 []byte                     `aisWidth:"-1"`
-	Spare2                  uint8                      `aisWidth:"4" aisEncodeAs:"0"`
+	Spare2                  uint8                      `aisWidth:"4"` /* Quite a few encoders seem to put data in the Spare2 bits, so we don't force encode it as zero */
 	CommunicationStateItdma `aisWidth:"20"`
 }
 

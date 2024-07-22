@@ -9,6 +9,18 @@ import (
 	"testing"
 )
 
+func binToString(bin []byte) string {
+	var out string
+	for _, m := range bin {
+		if m > 0 {
+			out += "1"
+		} else {
+			out += "0"
+		}
+	}
+	return out
+}
+
 func tryFile(t *testing.T, x *Codec, msgID int) {
 	f, err := os.Open(fmt.Sprintf("testmsg/%d.msg", msgID))
 	if err != nil {
@@ -50,7 +62,9 @@ func tryFile(t *testing.T, x *Codec, msgID int) {
 		}
 
 		if !bytes.Equal(encoded[:len(source)], source) {
-			t.Error("Bitstream does not match", msgID, index)
+			t.Error("Bitstream does not match", msgID, index, binToString(source), binToString(encoded[:len(source)]))
+			t.Errorf("%+v", decoded)
+
 		}
 	}
 }
