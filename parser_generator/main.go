@@ -108,7 +108,7 @@ package ais
 `
 	// type to parseFunction
 	output += `
-var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
+var mapper = map[int64]func(t *Codec, payload []uint64, numBits int, offset *int) Packet {
 `
 	for i := 1; i < 28; i++ {
 		if name, ok := msgMap[i]; ok {
@@ -142,7 +142,7 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 				log.Println("Found type to generate: ", name)
 
 				// the overall minimum length of the message
-				var minLength uint
+				var minLength int
 
 				fields := []fieldType{}
 				for _, field := range structType.Fields.List {
@@ -157,7 +157,7 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 								if err != nil {
 									panic(err)
 								}
-								minLength += uint(ml)
+								minLength += ml
 								width = ml
 							}
 						}
@@ -221,7 +221,7 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 							if width < 0 {
 								fixedLength = true
 							} else {
-								minLength += uint(width)
+								minLength += width
 							}
 						} else if tagName == "aisDependsBit" {
 							if tagValue[0] == '~' {
@@ -243,7 +243,7 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 					}
 					// drop the minlength width if this is an optional field..
 					if dependsBit != -1 {
-						minLength -= uint(width)
+						minLength -= width
 					}
 					log.Println("\t", fieldName, typ, tags, width)
 					fields = append(fields, fieldType{
@@ -269,22 +269,22 @@ var mapper = map[int64]func(t *Codec, payload []byte, offset *uint) Packet {
 				rv := "p"
 				if isPacketType {
 					rv = "nil"
-					output += `func parse` + name + `(t *Codec, payload []byte, offset *uint) Packet {
+					output += `func parse` + name + `(t *Codec, payload []uint64, numBits int, offset *int) Packet {
 `
 				} else {
-					output += `func parse` + name + `(t *Codec, payload []byte, offset *uint) ` + name + ` {`
+					output += `func parse` + name + `(t *Codec, payload []uint64, numBits int, offset *int) ` + name + ` {`
 				}
 				output += `
 	p := ` + name + `{}
-	minLength := uint(` + strconv.Itoa(int(minLength)) + `)
+	minLength := int(` + strconv.Itoa(int(minLength)) + `)
     minBitsForValid, ok := t.minValidMap["` + name + `"]
 	if !ok {
 		minBitsForValid = minLength
 	}
-	if len(payload)-int(*offset) < int(minBitsForValid) {
+	if numBits-int(*offset) < int(minBitsForValid) {
 		return ` + rv + `
 	}
-var length uint
+var length int
     `
 
 				var (
@@ -321,7 +321,7 @@ var length uint
 					}
 					if field.embedded {
 						output += `
-	p.` + field.typ + ` = parse` + field.typ + `(t, payload, offset)
+	p.` + field.typ + ` = parse` + field.typ + `(t, payload, numBits, offset)
 `
 
 					} else if field.isArray {
@@ -337,7 +337,7 @@ var length uint
 							output += `var elems [` + strconv.Itoa(field.arrayLength) + `]` + field.typ + `
 `
 							for i := 0; i < field.arrayLength; i++ {
-								output += `elems[` + strconv.Itoa(i) + `] = parse` + field.typ + `(t, payload, offset)
+								output += `elems[` + strconv.Itoa(i) + `] = parse` + field.typ + `(t, payload, numBits, offset)
 `
 								if field.width > 0 || i == 0 {
 									output += `
@@ -353,14 +353,14 @@ var length uint
 							if field.width < 0 {
 								// if this is the last field we can just take the rest of the payload
 								if fieldI == len(fields)-1 {
-									output += `length = uint(len(payload)) - *offset
+									output += `length = numBits - *offset
 `
 								} else {
 									remainingWidth := 0
 									for i := fieldI + 1; i < len(fields); i++ {
 										remainingWidth += fields[i].width
 									}
-									output += `length = uint(len(payload))-*offset - ` + strconv.Itoa(remainingWidth) + `
+									output += `length = numBits-*offset - ` + strconv.Itoa(remainingWidth) + `
 `
 								}
 							} else {
@@ -374,30 +374,29 @@ var length uint
 	}
 `
 
-							output += `p.` + field.name + ` = payload[*offset:*offset+length]
-	*offset += length
+							output += `p.` + field.name + ` = t.extractBits(payload, offset, length)
 `
 						}
 					} else {
 						output += "\n// parsing " + field.name + " as " + field.typ
 						if field.dependsBit > 0 {
-							var dependValue = "1"
+							var dependValue = "true"
 							if field.dependsAs0 {
-								dependValue = "0"
+								dependValue = "false"
 							}
 							output += `(optional)
-	if len(payload) <= ` + strconv.Itoa(field.dependsBit) + ` {
+	if numBits <= ` + strconv.Itoa(field.dependsBit) + ` {
 		// todo set Valid=false??
 		return nil
 	}
-	if payload[` + strconv.Itoa(field.dependsBit) + `] == ` + dependValue + ` {
+	if extractBit(payload, ` + strconv.Itoa(field.dependsBit) + `) == ` + dependValue + ` {
 `
 
 						}
 						if field.isVariableLength {
 							output += `
 	// TODO check minlength less than payload length... TODO check if there is a better way to calculate the variable length...
-	length = uint(len(payload)) - minLength` + "\n"
+	length = numBits - minLength` + "\n"
 						} else {
 							output += `
 length = ` + strconv.Itoa(field.width) + "\n"
@@ -415,7 +414,7 @@ length = ` + strconv.Itoa(field.width) + "\n"
 						case "StaticDataReportB":
 							fallthrough
 						case "FieldApplicationIdentifier":
-							output += `p.` + field.name + ` = parse` + field.typ + `(t, payload, offset)
+							output += `p.` + field.name + ` = parse` + field.typ + `(t, payload, numBits, offset)
 `
 							if field.width > 0 {
 								output += `
@@ -431,11 +430,11 @@ length = ` + strconv.Itoa(field.width) + "\n"
 						case "FieldETA":
 							fallthrough
 						case "FieldDimension":
-							output += `p.` + field.name + ` = parse` + field.typ + `(t, payload, offset)
+							output += `p.` + field.name + ` = parse` + field.typ + `(t, payload, numBits, offset)
 `
 						case "FieldLatLonFine":
 							output += `
-	num = extractNumber(payload, true, offset, length)
+	num = extractNumber64(payload, true, offset, length)
 	if !t.FloatWithoutConversion {
 		p.` + field.name + ` = FieldLatLonFine(num) / 10000 / 60
 	} else {
@@ -444,7 +443,7 @@ length = ` + strconv.Itoa(field.width) + "\n"
 `
 						case "FieldLatLonCoarse":
 							output += `
-	num = extractNumber(payload, true, offset, length)
+	num = extractNumber64(payload, true, offset, length)
 	if !t.FloatWithoutConversion {
 		p.` + field.name + ` = FieldLatLonCoarse(num) / 10 / 60
 	} else {
@@ -453,7 +452,7 @@ length = ` + strconv.Itoa(field.width) + "\n"
 `
 						case "Field10":
 							output += `
-	num = extractNumber(payload, false, offset, length)
+	num = extractNumber64(payload, false, offset, length)
 	if !t.FloatWithoutConversion {
 		p.` + field.name + ` = Field10(num) / 10
 	} else {
@@ -462,11 +461,11 @@ length = ` + strconv.Itoa(field.width) + "\n"
 `
 						case "bool":
 							output += `
-	num = extractNumber(payload, false, offset, length)
+	num = extractNumber64(payload, false, offset, length)
 	p.` + field.name + ` = num == 1`
 						case "int16":
 							output += `
-	num = extractNumber(payload, true, offset, length)
+	num = extractNumber64(payload, true, offset, length)
 	p.` + field.name + ` = int16(num)
 `
 						case "string":
@@ -475,17 +474,17 @@ length = ` + strconv.Itoa(field.width) + "\n"
 `
 						case "uint16":
 							output += `
-	num = extractNumber(payload, false, offset, length)
+	num = extractNumber64(payload, false, offset, length)
 	p.` + field.name + ` = uint16(num)
 `
 						case "uint32":
 							output += `
-	num = extractNumber(payload, false, offset, length)
+	num = extractNumber64(payload, false, offset, length)
 	p.` + field.name + ` = uint32(num)
 `
 						case "uint8":
 							output += `
-	num = extractNumber(payload, false, offset, length)
+	num = extractNumber64(payload, false, offset, length)
 	p.` + field.name + ` = uint8(num)
 `
 						default:
@@ -503,7 +502,7 @@ length = ` + strconv.Itoa(field.width) + "\n"
 				}
 				if isPacketType {
 					output += `
-	if *offset > uint(len(payload)) {
+	if *offset > numBits {
 		return nil
 	}
 `

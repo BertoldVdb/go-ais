@@ -9,7 +9,7 @@ import (
 // Codec encodes and decodes AIS messages (ITU-R M.1371-5)
 type Codec struct {
 	StrictByteAlignment bool
-	minValidMap         map[string]uint
+	minValidMap         map[string]int
 
 	// DecoderCheckFixedValues will validate that spare values are zero. This is only for debugging
 	// and should not be used as newer protocl versions may use the spares for something.
@@ -39,7 +39,7 @@ func assert(condition bool, err string) {
 func CodecNewFast(acceptShortAck bool, acceptShortShipStaticData bool, parseFast bool) *Codec {
 	t := &Codec{}
 
-	t.minValidMap = make(map[string]uint)
+	t.minValidMap = make(map[string]int)
 
 	if acceptShortAck {
 		t.minValidMap["BinaryAcknowledgeData"] = 1
@@ -98,7 +98,7 @@ func (t *Codec) ChannelToFrequency(channel uint16) uint {
 	}
 }
 
-func makeSigned(input uint64, length uint) int64 {
+func makeSigned(input uint64, length int) int64 {
 	result := int64(input)
 	maxValue := int64(1) << length
 
@@ -109,17 +109,44 @@ func makeSigned(input uint64, length uint) int64 {
 	return result
 }
 
-func extractNumber(payload []byte, isSigned bool, offset *uint, width uint) int64 {
-	result := uint64(0)
+func extractBit(payload []uint64, index int) bool {
+	return (payload[index/64] >> uint64(63-(index%64)) & 1) > 0
+}
 
-	for i := *offset; i < *offset+width; i++ {
-		result <<= 1
-		if i < uint(len(payload)) {
-			result |= uint64(payload[i])
+func (t *Codec) extractBits(payload []uint64, offset *int, l int) []byte {
+	out := make([]byte, l)
+
+	for i := range out {
+		if extractBit(payload, *offset+i) {
+			out[i] = 1
 		}
 	}
 
+	*offset += l
+
+	return out
+}
+
+func extractNumber64(payload []uint64, isSigned bool, offset *int, width int) int64 {
+	assert(width <= 64 && width > 0, "width must be 64 or less and greater than 0")
+
+	offsetEnd := *offset + width - 1
+	index := offsetEnd / 64
+	shift := 63 - (offsetEnd % 64)
+
 	*offset += width
+
+	if index >= len(payload) {
+		return 0
+	}
+
+	result := payload[index] >> shift
+
+	if width > 64-*offset && index-1 >= 0 && index-1 < len(payload) {
+		result |= payload[index-1] << (64 - shift)
+	}
+
+	result &= (uint64(1) << width) - 1
 
 	if isSigned {
 		return makeSigned(result, width)
@@ -128,7 +155,7 @@ func extractNumber(payload []byte, isSigned bool, offset *uint, width uint) int6
 	return int64(result)
 }
 
-func extractString(payload []byte, offset *uint, width uint, dropSpace bool) string {
+func extractString(payload []uint64, offset *int, width int, dropSpace bool) string {
 	numChars := width / 6
 	if numChars == 0 {
 		return ""
@@ -136,8 +163,8 @@ func extractString(payload []byte, offset *uint, width uint, dropSpace bool) str
 
 	result := make([]byte, numChars)
 
-	for i := uint(0); i < numChars; i++ {
-		number := extractNumber(payload, false, offset, 6)
+	for i := 0; i < numChars; i++ {
+		number := extractNumber64(payload, false, offset, 6)
 
 		if number < 32 {
 			number = number + 64
@@ -162,23 +189,23 @@ func extractString(payload []byte, offset *uint, width uint, dropSpace bool) str
 	return string(result)
 }
 
-func aisFindFieldLength(sf reflect.StructField, payload []byte) (valid bool, skip bool, fixedLength bool, length uint) {
+func aisFindFieldLength(sf reflect.StructField, payload []uint64, numBits int) (valid bool, skip bool, fixedLength bool, length int) {
 	depends, ok := sf.Tag.Lookup("aisDependsBit")
 	if ok {
-		target := byte(1)
+		target := true
 		var dependsI int
 		if depends[0] == '~' {
-			target = 0
+			target = false
 			dependsI, _ = strconv.Atoi(depends[1:])
 		} else {
 			dependsI, _ = strconv.Atoi(depends)
 		}
 
-		if dependsI >= len(payload) {
+		if dependsI >= numBits {
 			return false, false, false, 0
 		}
 
-		if payload[dependsI] != target {
+		if extractBit(payload, dependsI) != target {
 			return true, true, false, 0
 		}
 	}
@@ -187,7 +214,7 @@ func aisFindFieldLength(sf reflect.StructField, payload []byte) (valid bool, ski
 	if vi < 0 {
 		return true, false, false, 0
 	}
-	return true, false, true, uint(vi)
+	return true, false, true, vi
 }
 
 func isBasicValue(val reflect.Value) (bool, int64) {
@@ -215,7 +242,7 @@ func isSigned(val reflect.Value) bool {
 	}
 }
 
-func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) int {
+func (t *Codec) aisFillMessage(val reflect.Value, payload []uint64, numBits int, offset *int) int {
 	/* Return value of -2 propagates all the way up and fails the decode */
 
 	optional := false
@@ -232,9 +259,9 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 	}
 
 	/* Calculate minimum length */
-	minLength := uint(0)
+	minLength := 0
 	for i := 0; i < val.NumField(); i++ {
-		valid, skip, fixedLength, length := aisFindFieldLength(st.Field(i), payload)
+		valid, skip, fixedLength, length := aisFindFieldLength(st.Field(i), payload, numBits)
 		if !valid {
 			return -1
 		}
@@ -249,7 +276,7 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 	}
 
 	/* Is the message long enough? */
-	if len(payload)-int(*offset) < int(minBitsForValid) {
+	if numBits-*offset < minBitsForValid {
 		if optional {
 			return 0
 		}
@@ -263,7 +290,7 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 
 		field := val.Field(i)
 
-		_, skip, fixedLength, v := aisFindFieldLength(st.Field(i), payload)
+		_, skip, fixedLength, v := aisFindFieldLength(st.Field(i), payload, numBits)
 
 		if skip {
 			continue
@@ -271,10 +298,8 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 
 		/* Some fields take up the entire remainder of the message */
 		if !fixedLength {
-			varLen := len(payload) - int(minLength)
-			assert(varLen >= 0, "Variable length payload length is negative.")
-
-			v = uint(varLen)
+			v = numBits - minLength
+			assert(v >= 0, "Variable length payload length is negative.")
 		}
 
 		var basicValue int64
@@ -294,7 +319,7 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 				}
 			}
 
-			basicValue = extractNumber(payload, isSigned(field), offset, v)
+			basicValue = extractNumber64(payload, isSigned(field), offset, v)
 			if checkValue && (basicValue != correctValue) {
 				return -2
 			}
@@ -311,12 +336,11 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 		case reflect.String:
 			field.SetString(extractString(payload, offset, v, t.DropSpace))
 		case reflect.Slice:
-			field.SetBytes(payload[*offset : *offset+v])
-			*offset += v
+			field.SetBytes(t.extractBits(payload, offset, v))
 		case reflect.Array:
 			for k := 0; k < field.Len(); k++ {
 				subField := field.Index(k)
-				ok := t.aisFillMessage(subField, payload, offset)
+				ok := t.aisFillMessage(subField, payload, numBits, offset)
 				assert(ok != -2, "Could not encode array subfield. This should not happen with the current message definition")
 				if ok == -1 {
 					if k == 0 {
@@ -326,14 +350,14 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 				}
 			}
 		case reflect.Struct:
-			ok := t.aisFillMessage(field, payload, offset)
+			ok := t.aisFillMessage(field, payload, numBits, offset)
 			if ok < 0 {
 				return ok
 			}
 		case reflect.Float64, reflect.Float32:
 			signed := field.Type().Name() != "Field10"
 
-			value := extractNumber(payload, signed, offset, v)
+			value := extractNumber64(payload, signed, offset, v)
 			field.SetFloat(float64(value))
 
 			if !t.FloatWithoutConversion {
@@ -359,7 +383,27 @@ func (t *Codec) aisFillMessage(val reflect.Value, payload []byte, offset *uint) 
 // DecodePacket will convert a []byte containing 0 and 1 to an object containing the decoded packet.
 // It will return nil if decoding failed.
 func (t *Codec) DecodePacket(payload []byte) Packet {
-	if len(payload)%8 != 0 {
+	out := make([]uint64, (len(payload)+63)/64)
+
+	cnt := 63
+	ind64 := 0
+
+	for _, m := range payload {
+		if m > 0 {
+			out[ind64] |= 1 << cnt
+		}
+
+		if cnt--; cnt < 0 {
+			cnt = 63
+			ind64++
+		}
+	}
+
+	return t.DecodePacket64(out, len(payload))
+}
+
+func (t *Codec) DecodePacket64(payload []uint64, numBits int) Packet {
+	if numBits%8 != 0 {
 		/* AIS messages should be a multiple of 8-bits:
 		 *  [Order AIS message bits into 8-bit bytes for assembly of transmission packet, see § 3.3.7.]
 		 * Most AIS messages are already a multiple of 8-bits and not all transmitters seem to implement
@@ -371,18 +415,18 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 		}
 	}
 
-	if len(payload) < 6 {
+	if numBits < 6 {
 		return nil
 	}
 
-	offset := uint(0)
-	msgID := extractNumber(payload, false, &offset, 6)
+	offset := 0
+	msgID := extractNumber64(payload, false, &offset, 6)
 
 	offset = 0
 
 	if t.FastParse {
 		if fn, canFastParse := mapper[msgID]; canFastParse {
-			switch out := fn(t, payload, &offset).(type) {
+			switch out := fn(t, payload, numBits, &offset).(type) {
 			case Packet:
 				return decodeHelper(out)
 			}
@@ -394,7 +438,7 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 	if msgID >= 1 && msgID <= 27 {
 		msgType := msgMap[msgID]
 		msgPtr := reflect.New(msgType.rType)
-		if t.aisFillMessage(msgPtr.Elem(), payload, &offset) == 0 {
+		if t.aisFillMessage(msgPtr.Elem(), payload, numBits, &offset) == 0 {
 			switch out := msgPtr.Elem().Interface().(type) {
 			case Packet:
 				return decodeHelper(out)
@@ -405,7 +449,7 @@ func (t *Codec) DecodePacket(payload []byte) Packet {
 	return nil
 }
 
-func encodeNumber(packet []byte, isSigned bool, width uint, number int64) ([]byte, bool) {
+func encodeNumber(packet []byte, isSigned bool, width int, number int64) ([]byte, bool) {
 	if !isSigned {
 		maxVal := (int64(1) << width) - 1
 		if number > maxVal {
@@ -423,15 +467,15 @@ func encodeNumber(packet []byte, isSigned bool, width uint, number int64) ([]byt
 	numUnsigned := uint64(number)
 
 	for i := int(width - 1); i >= 0; i-- {
-		packet = append(packet, byte((numUnsigned>>uint(i))&1))
+		packet = append(packet, byte((numUnsigned>>i)&1))
 	}
 
 	return packet, true
 }
 
-func encodeString(packet []byte, width uint, fixedWidth bool, str string) ([]byte, bool) {
-	var i uint
-	for i = 0; i < uint(len(str)) && (i < width/6 || !fixedWidth); i++ {
+func encodeString(packet []byte, width int, fixedWidth bool, str string) ([]byte, bool) {
+	var i int
+	for i = 0; i < len(str) && (i < width/6 || !fixedWidth); i++ {
 		char := byte(str[i])
 
 		if 64 <= char && char <= 95 {
@@ -456,7 +500,7 @@ func encodeString(packet []byte, width uint, fixedWidth bool, str string) ([]byt
 	return packet, true
 }
 
-func aisEncodedLength(val reflect.Value, i int) (skip bool, fixedLength bool, length uint) {
+func aisEncodedLength(val reflect.Value, i int) (skip bool, fixedLength bool, length int) {
 	st := val.Type()
 
 	sf := st.Field(i)
@@ -478,7 +522,7 @@ func aisEncodedLength(val reflect.Value, i int) (skip bool, fixedLength bool, le
 		return false, false, 0
 	}
 
-	return false, true, uint(vi)
+	return false, true, vi
 }
 
 func (t *Codec) aisEncodeMessage(val reflect.Value, packet []byte) ([]byte, bool) {

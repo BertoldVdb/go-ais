@@ -20,7 +20,7 @@ func TestPanicFastDecodeBinaryMessage(t *testing.T) {
 			pkt[i] -= '0'
 		}
 		if result := cd.DecodePacket(pkt); result != nil {
-			t.Error("Managed to decode invalid packet", result.GetHeader())
+			t.Errorf("Managed to decode invalid packet: %+v", result)
 		}
 	}
 }
