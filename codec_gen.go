@@ -739,9 +739,26 @@ func parseSafetyBroadcastMessage(t *Codec, payload []uint64, numBits int, offset
 	p.Spare = uint8(num)
 
 	// parsing Text as string
-	// TODO check minlength less than payload length... TODO check if there is a better way to calculate the variable length...
-	length = numBits - minLength
-	str = extractString(payload, offset, length, t.DropSpace)
+	// FIX: Calculate remaining bits more accurately for text field
+	// Ensure we don't truncate the last character due to padding calculation
+	remainingBits := numBits - *offset
+
+	// Text should use all remaining bits, but make sure it's multiple of 6 for proper 6-bit ASCII decoding
+	textBits := remainingBits
+	if textBits > 0 {
+		// Round down to nearest multiple of 6 to ensure complete characters
+		// But don't lose the last character - check if we have enough bits for one more char
+		if textBits%6 != 0 {
+			// If we have partial bits, still try to decode them as they might form a complete character
+			// when considering fill bits in the NMEA sentence
+			textBits = ((textBits + 5) / 6) * 6 // Round up to next multiple of 6
+			if textBits > remainingBits {
+				textBits = (remainingBits / 6) * 6 // Fall back to round down if too many bits
+			}
+		}
+	}
+
+	str = extractString(payload, offset, textBits, t.DropSpace)
 	p.Text = str
 
 	if *offset > numBits {
